@@ -2,8 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Maddi & Mark — Wedding Dashboard</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="M&M Wedding">
+<meta name="theme-color" content="#FDE8EE">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
@@ -422,6 +428,70 @@
   .pay-tooltip-label { color: rgba(255,255,255,0.7); font-size: 10px; }
   .pay-tooltip-amount { color: #fff; font-weight: 500; }
 
+  /* NOTE ICON */
+  .note-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--yellow);
+    color: var(--ink-mid);
+    font-size: 10px;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    margin-left: 4px;
+  }
+  .note-popup {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+    z-index: 200;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    min-width: 160px;
+    max-width: 220px;
+    white-space: normal;
+    text-align: left;
+    line-height: 1.4;
+  }
+  .note-popup::after {
+    content: '';
+    position: absolute;
+    top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--ink);
+  }
+  .note-icon:hover .note-popup,
+  .note-icon.open .note-popup { display: block; }
+
+  /* NEXT 30 DAYS */
+  .thirty-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 13px;
+  }
+  .thirty-row:last-child { border-bottom: none; }
+  .thirty-days-left {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 99px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
   /* REALTIME INDICATOR */
   .realtime-badge {
     display: inline-flex;
@@ -471,6 +541,12 @@
       <span id="alert-body"></span>
     </div>
 
+    <!-- NEXT 30 DAYS PANEL -->
+    <div id="thirty-day-panel" style="display:none;background:linear-gradient(135deg,var(--yellow-pale),var(--pink-pale));border:1px solid #EDE0C0;border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
+      <p style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-mid);margin-bottom:10px;">📅 Due in the next 30 days</p>
+      <div id="thirty-day-list"></div>
+    </div>
+
     <div class="stat-grid">
       <div class="stat-card" style="background:var(--sage-pale);border-color:var(--sage-light);">
         <p class="stat-label">Paid so far</p>
@@ -491,6 +567,11 @@
         <p class="stat-label">Honeymoon fund</p>
         <p class="stat-value" id="s-honeymoon">—</p>
         <p class="stat-sub" id="s-honeymoon-sub">$87/wk + wedding surplus</p>
+      </div>
+      <div class="stat-card" style="background:var(--blue-pale);border-color:var(--blue);">
+        <p class="stat-label">Confirmed guests</p>
+        <p class="stat-value" id="s-guests" style="color:var(--blue);">—</p>
+        <p class="stat-sub" id="s-catering-cost">$145/person</p>
       </div>
     </div>
 
@@ -527,6 +608,7 @@
       <button class="tab-btn" onclick="showTab('payments',this)">Payments</button>
       <button class="tab-btn" onclick="showTab('figtree',this)">Fig Tree</button>
       <button class="tab-btn" onclick="showTab('budget',this)">Budget</button>
+      <button class="tab-btn" onclick="showTab('guests',this)">Guests</button>
     </div>
 
     <!-- SAVINGS TAB -->
@@ -634,7 +716,39 @@
       </div>
     </div>
 
-  </div><!-- /content -->
+      <!-- GUESTS TAB -->
+    <div id="tab-guests" class="view">
+      <div class="card" style="margin-bottom:10px;">
+        <p class="card-title">Guest list</p>
+        <p class="card-sub">Confirmed attendance · live from your spreadsheet</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem;">
+          <div style="background:var(--blue-pale);border-radius:var(--radius);padding:10px 12px;">
+            <p style="font-size:11px;color:var(--blue);">Attending</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--blue);" id="g-attending">—</p>
+          </div>
+          <div style="background:var(--pink-pale);border-radius:var(--radius);padding:10px 12px;">
+            <p style="font-size:11px;color:var(--clay);">Not attending</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--clay);" id="g-not-attending">—</p>
+          </div>
+          <div style="background:var(--yellow-pale);border-radius:var(--radius);padding:10px 12px;">
+            <p style="font-size:11px;color:var(--ink-mid);">Pending</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:26px;" id="g-pending">—</p>
+          </div>
+          <div style="background:var(--sage-pale);border-radius:var(--radius);padding:10px 12px;">
+            <p style="font-size:11px;color:var(--sage);">Catering cost</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--sage);" id="g-catering">—</p>
+          </div>
+        </div>
+        <div id="g-dietary" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Guest names</p>
+        <p class="card-sub">Tick Attending in the spreadsheet to confirm</p>
+        <div id="g-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div>
+      </div>
+    </div>
+
+</div><!-- /content -->
 </main>
 
 <footer>Maddi & Mark · Byron Bay · July 2027 ·  made with love</footer>
@@ -675,6 +789,7 @@ async function sbFetch(table, params = '') {
 
 // ─── STATE ─────────────────────────────────────────────────────────────────
 let budgetData = [];
+let guestData  = [];
 
 // ─── INIT ──────────────────────────────────────────────────────────────────
 async function init() {
@@ -688,14 +803,18 @@ async function init() {
 
 async function loadData() {
   try {
-    const data = await sbFetch('wedding_budget', 'select=*&order=budget_amount.desc');
-    if (data) budgetData = data;
+    const [budget, guests] = await Promise.all([
+      sbFetch('wedding_budget', 'select=*&order=budget_amount.desc'),
+      sbFetch('wedding_guests', 'select=*').catch(() => []), // graceful fail if table doesn't exist yet
+    ]);
+    if (budget) budgetData = budget;
+    if (guests) guestData  = guests;
   } catch(e) {
     console.error('Load error:', e);
   }
 }
 
-// Poll every 30 seconds for updates (replaces realtime websocket)
+// Poll every 30 seconds for updates
 function startPolling() {
   setInterval(async () => {
     await loadData();
@@ -768,9 +887,124 @@ function renderAll() {
       ' due ' + formatDateDisplay(upcoming.next_payment_date);
   }
 
+  // ── Guests ──────────────────────────────────────────────────────────────
+  renderGuests();
+
+  // ── Next 30 days panel ───────────────────────────────────────────────────
+  renderThirtyDays();
+
   renderSavings();
   renderPayments();
   renderBudget(totalBudget, totalPaid);
+}
+
+// ─── NEXT 30 DAYS ──────────────────────────────────────────────────────────
+function renderThirtyDays() {
+  const today = new Date();
+  const in30 = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const panel = document.getElementById('thirty-day-panel');
+  const list  = document.getElementById('thirty-day-list');
+  list.innerHTML = '';
+
+  // Collect all payments due in next 30 days
+  const due = [];
+
+  // From budget vendors
+  budgetData.forEach(r => {
+    if (!r.next_payment_date) return;
+    const d = new Date(r.next_payment_date + 'T00:00:00');
+    if (d >= today && d <= in30) {
+      const remaining = (r.budget_amount||0) - (r.paid_amount||0);
+      due.push({ label: r.category, vendor: r.vendor, amount: remaining, date: d, note: r.notes });
+    }
+  });
+
+  // From Fig Tree hardcoded instalments
+  FIGTREE_PAYMENTS.forEach(p => {
+    if (p.date >= today && p.date <= in30) {
+      due.push({ label: p.label, vendor: 'Fig Tree Byron Bay', amount: p.amount, date: p.date });
+    }
+  });
+
+  due.sort((a,b) => a.date - b.date);
+
+  if (due.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+  due.forEach(p => {
+    const daysLeft = Math.ceil((p.date - today) / (1000*60*60*24));
+    const urgency = daysLeft <= 7 ? 'background:#FCEBEB;color:#8B2020;' : daysLeft <= 14 ? 'background:#FEF3E2;color:#7A4D0A;' : 'background:var(--blue-pale);color:#185FA5;';
+    const row = document.createElement('div');
+    row.className = 'thirty-row';
+    row.innerHTML = `
+      <div style="flex:1;">
+        <p style="font-weight:500;font-size:13px;">${p.label}</p>
+        <p style="font-size:11px;color:var(--ink-light);">${p.vendor || ''} · ${formatDateDisplay(p.date.toISOString().split('T')[0])}</p>
+      </div>
+      <p style="font-weight:500;font-size:13px;margin-right:8px;">$${Math.round(p.amount).toLocaleString()}</p>
+      <span class="thirty-days-left" style="${urgency}">${daysLeft}d</span>`;
+    list.appendChild(row);
+  });
+}
+
+// ─── GUESTS ────────────────────────────────────────────────────────────────
+function renderGuests() {
+  if (!guestData || guestData.length === 0) return;
+
+  const attending    = guestData.filter(g => g.attending).length;
+  const notAttending = guestData.filter(g => g.not_attending).length;
+  const pending      = guestData.length - attending - notAttending;
+  const cateringCost = attending * 145;
+
+  // Update stat card
+  const sGuests = document.getElementById('s-guests');
+  const sCatering = document.getElementById('s-catering-cost');
+  if (sGuests) { sGuests.textContent = attending; }
+  if (sCatering) { sCatering.textContent = '$145/person · $' + cateringCost.toLocaleString() + ' total'; }
+
+  // Update guests tab
+  const gAtt = document.getElementById('g-attending');
+  const gNot = document.getElementById('g-not-attending');
+  const gPen = document.getElementById('g-pending');
+  const gCat = document.getElementById('g-catering');
+  if (gAtt) gAtt.textContent = attending;
+  if (gNot) gNot.textContent = notAttending;
+  if (gPen) gPen.textContent = pending;
+  if (gCat) gCat.textContent = '$' + cateringCost.toLocaleString();
+
+  // Dietary breakdown
+  const dietary = document.getElementById('g-dietary');
+  if (dietary) {
+    const fields = [
+      { key: 'vegetarian', label: '🥗 Vegetarian' },
+      { key: 'vegan',      label: '🌱 Vegan' },
+      { key: 'nut_allergy', label: '🥜 Nut allergy' },
+      { key: 'no_beef',    label: '🐄 No beef' },
+      { key: 'no_pork',    label: '🐷 No pork' },
+      { key: 'shellfish',  label: '🦐 Shellfish allergy' },
+      { key: 'gluten_free', label: '🌾 Gluten free' },
+    ];
+    dietary.innerHTML = '';
+    fields.forEach(f => {
+      const count = guestData.filter(g => g.attending && g[f.key]).length;
+      if (count > 0) {
+        dietary.innerHTML += `<span class="pill p-muted">${f.label}: ${count}</span>`;
+      }
+    });
+  }
+
+  // Guest name list
+  const gList = document.getElementById('g-list');
+  if (gList) {
+    gList.innerHTML = '';
+    guestData.forEach(g => {
+      const status = g.attending ? 'p-ok' : g.not_attending ? 'p-danger' : 'p-muted';
+      gList.innerHTML += `<span class="pill ${status}">${g.name}</span>`;
+    });
+  }
 }
 
 // ─── SAVINGS ───────────────────────────────────────────────────────────────
@@ -932,9 +1166,13 @@ function renderPayments() {
     const pillClass = daysAway < 60 ? 'p-danger' : daysAway < 180 ? 'p-warn' : daysAway < 300 ? 'p-info' : 'p-ok';
     const row = document.createElement('div');
     row.className = 'vrow';
+    const vNote = r.notes ? `<span class="note-icon" style="margin-left:4px;" onclick="this.classList.toggle('open')">✎<div class="note-popup">${r.notes}</div></span>` : '';
     row.innerHTML = `
-      <div class="vname"><p>${r.category}</p><p class="vcat">${r.vendor||''}</p></div>
-      <div class="vamt">$${Math.round(r.remaining_amount||0).toLocaleString()}</div>
+      <div class="vname">
+        <div style="display:flex;align-items:center;gap:4px;"><p>${r.category}</p>${vNote}</div>
+        <p class="vcat">${r.vendor||''}</p>
+      </div>
+      <div class="vamt">$${Math.round((r.budget_amount||0)-(r.paid_amount||0)).toLocaleString()}</div>
       <span class="pill ${pillClass}">${formatDateDisplay(r.next_payment_date)}</span>`;
     vendorList.appendChild(row);
   });
@@ -963,11 +1201,13 @@ function renderBudget(totalBudget, totalPaid) {
     const remaining = r.budget_amount - paid;
     const div = document.createElement('div');
     div.style.marginBottom = '12px';
+    const noteHtml = r.notes ? `<span class="note-icon" onclick="this.classList.toggle('open')">✎<div class="note-popup">${r.notes}</div></span>` : '';
     div.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--ink-light);margin-bottom:4px;gap:8px;">
-        <div style="min-width:0;">
+        <div style="min-width:0;display:flex;align-items:center;gap:4px;">
           <span style="color:var(--ink);font-weight:500;">${r.category}</span>
           ${r.vendor && r.vendor !== 'TBC' ? '<span style="color:var(--ink-light);font-size:11px;"> · ' + r.vendor + '</span>' : ''}
+          ${noteHtml}
         </div>
         <div style="text-align:right;flex-shrink:0;font-size:11px;">
           <span style="color:var(--ink);">$${r.budget_amount.toLocaleString()}</span>
