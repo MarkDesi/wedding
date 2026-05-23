@@ -587,7 +587,7 @@
 <script>
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://spnobkecunealgdelvoi.supabase.co';         // ← swap in
-const SUPABASE_ANON_KEY = 'sb_secret_N-bW7xDTDrdqafLA-CJR2A_J1qkU8uE'; // ← swap in
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwbm9ia2VjdW5lYWxnZGVsdm9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTY2NTAsImV4cCI6MjA5NTA3MjY1MH0.gerZeFjhr2q-_AMylIm0mvyu0lvDOjRky74GyntqojI'; // ← swap in
 
 const WEDDING_DATE = new Date('2027-07-27');
 const SAVINGS_START = new Date('2026-05-15');
