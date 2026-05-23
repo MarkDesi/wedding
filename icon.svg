@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background circle with pastel gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FDE8EE"/>
+      <stop offset="50%" style="stop-color:#EBF3FA"/>
+      <stop offset="100%" style="stop-color:#EEF6F3"/>
+    </linearGradient>
+    <linearGradient id="heart" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F2C4CE"/>
+      <stop offset="100%" style="stop-color:#E8A0B0"/>
+    </linearGradient>
+    <linearGradient id="leftM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#B8A8D8"/>
+      <stop offset="100%" style="stop-color:#A8C5B8"/>
+    </linearGradient>
+    <linearGradient id="rightM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A8C4E0"/>
+      <stop offset="100%" style="stop-color:#A8C5B8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="256" cy="256" r="256" fill="url(#bg)"/>
+
+  <!-- Subtle inner ring -->
+  <circle cx="256" cy="256" r="230" fill="none" stroke="#F2C4CE" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Heart shape centered top -->
+  <path d="M256 180 C256 180 230 152 210 152 C188 152 172 168 172 188 C172 220 210 248 256 280 C302 248 340 220 340 188 C340 168 324 152 302 152 C282 152 256 180 256 180Z"
+        fill="url(#heart)" opacity="0.85"/>
+
+  <!-- Left M — slightly offset left, overlapping heart base -->
+  <text x="148" y="360"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="160"
+        font-weight="400"
+        font-style="italic"
+        fill="url(#leftM)"
+        opacity="0.9"
+        letter-spacing="-4">M</text>
+
+  <!-- Right M — offset right, intertwined -->
+  <text x="220" y="360"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="160"
+        font-weight="400"
+        font-style="italic"
+        fill="url(#rightM)"
+        opacity="0.75"
+        letter-spacing="-4">M</text>
+
+  <!-- Small decorative dots -->
+  <circle cx="160" cy="130" r="6" fill="#F2C4CE" opacity="0.5"/>
+  <circle cx="352" cy="130" r="6" fill="#A8C4E0" opacity="0.5"/>
+  <circle cx="130" cy="260" r="4" fill="#B8A8D8" opacity="0.4"/>
+  <circle cx="382" cy="260" r="4" fill="#A8C5B8" opacity="0.4"/>
+</svg>
