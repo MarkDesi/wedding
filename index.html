@@ -617,7 +617,7 @@
     <div id="tab-savings" class="view active">
       <div class="card">
         <p class="card-title">Monthly tracker</p>
-        <p class="card-sub">Balance = wedding savings minus scheduled payments to date</p>
+        <p class="card-sub">Green line = target bank balance each month · Pink dots = your actual balance (update sheet on 15th)</p>
         <div class="realtime-badge"><span class="live-dot" style="width:5px;height:5px;"></span>Updates when you edit the sheet</div>
         <div style="position:relative;height:220px;margin-bottom:12px;">
           <canvas id="savingsChart"></canvas>
@@ -761,8 +761,9 @@ const SUPABASE_URL = 'https://spnobkecunealgdelvoi.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwbm9ia2VjdW5lYWxnZGVsdm9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTY2NTAsImV4cCI6MjA5NTA3MjY1MH0.gerZeFjhr2q-_AMylIm0mvyu0lvDOjRky74GyntqojI';
 
 const WEDDING_DATE = new Date('2027-07-29');
-const SAVINGS_START = new Date('2026-05-15');
-const CURRENT_SAVINGS = 5308.46;
+const SAVINGS_START = new Date('2026-04-08');
+const CURRENT_BALANCE = 3841.96;
+const CURRENT_BALANCE_DATE = new Date('2026-05-21');
 const WEEKLY_SAVINGS = 864;       // constant — never changes
 const ALREADY_PAID_DEPOSITS = 9135.23;
 const TOTAL_WEEKS = 57;
@@ -848,7 +849,7 @@ function renderAll() {
     .filter(s => s.actual_amount !== null && s.actual_amount !== undefined)
     .sort((a,b) => new Date(b.milestone_date) - new Date(a.milestone_date))[0];
 
-  const latestActualAmount = latestActual ? latestActual.actual_amount : 0;
+  const latestActualAmount = latestActual ? latestActual.actual_amount : CURRENT_BALANCE;
   const WEDDING_TOTAL = 58809; // from B4:C4 in spreadsheet
 
   // Stats
@@ -860,14 +861,15 @@ function renderAll() {
   // Actual savings stat card
   const actualEl = document.getElementById('s-actual-savings');
   const actualSubEl = document.getElementById('s-actual-savings-sub');
-  if (actualEl) actualEl.textContent = latestActual ? '$' + latestActualAmount.toLocaleString() : '—';
+  if (actualEl) actualEl.textContent = '$' + (latestActual ? latestActualAmount : CURRENT_BALANCE).toLocaleString();
   if (actualSubEl) actualSubEl.textContent = latestActual
     ? 'As of ' + formatDateDisplay(latestActual.milestone_date)
-    : 'Update Actual Savings in sheet';
+    : 'As of 21 May 2026 · update on 15th each month';
 
   // Savings progress card
-  const pctSaved = Math.round((totalPaid + latestActualAmount) / WEDDING_TOTAL * 100);
-  const stillToSave = Math.max(0, WEDDING_TOTAL - totalPaid - latestActualAmount);
+  const actualBalance = latestActual ? latestActualAmount : CURRENT_BALANCE;
+const pctSaved = Math.round((totalPaid + actualBalance) / WEDDING_TOTAL * 100);
+  const stillToSave = Math.max(0, WEDDING_TOTAL - totalPaid - actualBalance);
   const pctEl = document.getElementById('s-savings-pct');
   const statusEl = document.getElementById('s-savings-status');
   const paidEl2 = document.getElementById('s-savings-paid');
@@ -878,7 +880,7 @@ function renderAll() {
   if (statusEl) statusEl.textContent = latestActual
     ? 'Actual savings as of ' + formatDateDisplay(latestActual.milestone_date)
     : 'Update Actual Savings in your sheet each month';
-  if (paidEl2) paidEl2.textContent = '$' + Math.round(totalPaid + latestActualAmount).toLocaleString();
+  if (paidEl2) paidEl2.textContent = '$' + Math.round(totalPaid + actualBalance).toLocaleString();
   if (stillEl) stillEl.textContent = '$' + Math.round(stillToSave).toLocaleString();
   if (barEl) barEl.style.width = Math.min(pctSaved, 100) + '%';
   if (totalEl) totalEl.textContent = '$' + WEDDING_TOTAL.toLocaleString();
@@ -1021,7 +1023,7 @@ function renderGuests() {
 
 // ─── SAVINGS ───────────────────────────────────────────────────────────────
 const MONTHS = [
-  {label:"May'26",yr:2026,mo:5},{label:"Jun'26",yr:2026,mo:6},
+  {label:"Apr'26",yr:2026,mo:4},{label:"May'26",yr:2026,mo:5},{label:"Jun'26",yr:2026,mo:6},
   {label:"Jul'26",yr:2026,mo:7},{label:"Aug'26",yr:2026,mo:8},
   {label:"Sep'26",yr:2026,mo:9},{label:"Oct'26",yr:2026,mo:10},
   {label:"Nov'26",yr:2026,mo:11},{label:"Dec'26",yr:2026,mo:12},
@@ -1030,6 +1032,27 @@ const MONTHS = [
   {label:"May'27",yr:2027,mo:5},{label:"Jun'27",yr:2027,mo:6},
   {label:"Jul'27",yr:2027,mo:7},
 ];
+
+// Pre-calculated target bank balances (current balance + future savings + interest - future payments)
+// Based on: start Apr 8 2026, current balance $3,841.96 as of May 21, $864/wk, 2.75% p.a. interest
+const TARGET_BANK_BALANCES = {
+  '2026-4':  3841.96,
+  '2026-5':  3841.96,
+  '2026-6':  8162.78,
+  '2026-7':  7745.93,
+  '2026-8':  11205.40,
+  '2026-9':  15530.84,
+  '2026-10': 18993.11,
+  '2026-11': 20793.70,
+  '2026-12': 25123.76,
+  '2027-1':  21715.16,
+  '2027-2':  25182.88,
+  '2027-3':  29517.56,
+  '2027-4':  26113.08,
+  '2027-5':  29584.92,
+  '2027-6':  28974.23,
+  '2027-7':  18241.25,
+};
 
 // All scheduled payments — pulls everything from Supabase dynamically
 const FIGTREE_CATEGORIES = ['Venue', 'Planning Fee', 'Catering Food'];
@@ -1090,7 +1113,7 @@ function getMonthData(m) {
     totalSaved = Math.round(lastActual.actual_amount + weeksSinceLast * WEEKLY_SAVINGS);
   } else {
     // Fallback: pure formula
-    totalSaved = Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS + weeksElapsed * WEEKLY_SAVINGS);
+    totalSaved = Math.round(CURRENT_BALANCE + ALREADY_PAID_DEPOSITS + weeksElapsed * WEEKLY_SAVINGS);
   }
 
   // All payments made by end of this month (deposits already paid + scheduled future payments)
@@ -1128,10 +1151,10 @@ function renderSavings() {
       : null;
   });
 
-  // Line 3: Running balance — your savings minus payments made to that point
+  // Line 3: Target bank balance — what you should have in your account each month
   const balanceLine = MONTHS.map(m => {
-    const d = getMonthData(m);
-    return d.balance;
+    const key = m.yr + '-' + m.mo;
+    return TARGET_BANK_BALANCES[key] ?? null;
   });
 
   const ctx = document.getElementById('savingsChart');
@@ -1194,7 +1217,7 @@ function renderSavings() {
   [
     ['#F5C8D2', 'Wedding total ($58,809)', true],
     ['#E8A0B0', 'Actual savings (update in sheet monthly)', false],
-    ['#A8C5B8', 'Running balance (savings − payments)', true],
+    ['#A8C5B8', 'Target bank balance (what you should have)', false],
   ].forEach(([c,l,dashed]) => {
     const line = dashed
       ? `<span style="width:16px;border-top:2px dashed ${c};display:inline-block;vertical-align:middle;"></span>`
