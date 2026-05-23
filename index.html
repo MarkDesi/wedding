@@ -584,8 +584,8 @@
           <p style="font-size:11px;color:var(--ink-light);margin-top:4px;" id="s-honeymoon-breakdown">Calculating…</p>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-mid);text-align:right;">
-          <span>$864/wk × 57 weeks = <strong id="s-hon-base">—</strong></span>
-          <span>+ existing savings/deposits = <strong id="s-hon-surplus">—</strong></span>
+          <span>Latest actual savings = <strong id="s-hon-base">—</strong></span>
+          <span>+ $864/wk projected = <strong id="s-hon-surplus">—</strong></span>
           <span style="border-top:1px solid #C8BFDF;padding-top:4px;font-weight:500;">Total = <strong id="s-hon-total">—</strong></span>
         </div>
       </div>
@@ -630,7 +630,7 @@
               <tr>
                 <th style="text-align:left;">Month</th>
                 <th>Total saved</th>
-                <th style="color:var(--purple);">Honeymoon surplus</th>
+                <th style="color:var(--sage);">Surplus</th>
                 <th style="color:var(--ink-light);">Paid out</th>
                 <th style="color:var(--sage);">Balance</th>
                 <th>Due this month</th>
@@ -786,8 +786,9 @@ async function sbFetch(table, params = '') {
 }
 
 // ─── STATE ─────────────────────────────────────────────────────────────────
-let budgetData = [];
-let guestData  = [];
+let budgetData  = [];
+let guestData   = [];
+let savingsData = []; // monthly savings plan from sheet
 
 // ─── INIT ──────────────────────────────────────────────────────────────────
 async function init() {
@@ -801,12 +802,14 @@ async function init() {
 
 async function loadData() {
   try {
-    const [budget, guests] = await Promise.all([
+    const [budget, guests, savings] = await Promise.all([
       sbFetch('wedding_budget', 'select=*&order=budget_amount.desc'),
-      sbFetch('wedding_guests', 'select=*').catch(() => []), // graceful fail if table doesn't exist yet
+      sbFetch('wedding_guests', 'select=*').catch(() => []),
+      sbFetch('wedding_savings', 'select=*&order=milestone_date.asc').catch(() => []), // graceful fail
     ]);
-    if (budget) budgetData = budget;
-    if (guests) guestData  = guests;
+    if (budget)  budgetData  = budget;
+    if (guests)  guestData   = guests;
+    if (savings) savingsData = savings;
   } catch(e) {
     console.error('Load error:', e);
   }
@@ -836,18 +839,26 @@ function renderAll() {
   const today = new Date();
   const weeksElapsed = Math.max(0, Math.floor((today - SAVINGS_START) / (1000*60*60*24*7)));
 
-  // ── Honeymoon projection — clean simple logic ─────────────────────────────
-  // You save $864/week, constant, no splitting.
-  // Total saved by wedding day = current savings + ($864 × remaining weeks)
-  // Wedding still costs what it costs (totalOwed)
-  // Honeymoon = whatever is left over
-  const weeksRemaining   = Math.max(0, TOTAL_WEEKS - weeksElapsed);
-  const totalSavedByDay  = Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS + (weeksElapsed + weeksRemaining) * WEEKLY_SAVINGS);
-  const projectedHoneymoon = Math.max(0, totalSavedByDay - totalBudget);
+  // ── Use real actual savings from sheet if available ───────────────────────
+  // Find the most recent month where actual savings was entered
+  const latestActual = savingsData
+    .filter(s => s.actual_amount !== null && s.actual_amount !== undefined)
+    .sort((a,b) => new Date(b.milestone_date) - new Date(a.milestone_date))[0];
 
-  // Current honeymoon pot = what you've saved so far beyond what you've paid
-  const savedToDate      = Math.round(CURRENT_SAVINGS + weeksElapsed * WEEKLY_SAVINGS);
-  const honeymoonFund    = Math.max(0, savedToDate + ALREADY_PAID_DEPOSITS - totalBudget);
+  // Latest actual savings balance (falls back to formula estimate if not filled in)
+  const latestActualAmount = latestActual
+    ? latestActual.actual_amount
+    : Math.round(CURRENT_SAVINGS + weeksElapsed * WEEKLY_SAVINGS);
+
+  // Projected savings at wedding day:
+  // Start from latest actual, then project forward at $864/week for remaining weeks
+  const latestActualDate  = latestActual ? new Date(latestActual.milestone_date) : SAVINGS_START;
+  const weeksFromLatest   = Math.max(0, Math.floor((WEDDING_DATE - latestActualDate) / (1000*60*60*24*7)));
+  const totalSavedByDay   = Math.round(latestActualAmount + weeksFromLatest * WEEKLY_SAVINGS);
+  const projectedHoneymoon = Math.max(0, totalSavedByDay - totalOwed);
+
+  // Current honeymoon surplus = latest actual minus what's still owed
+  const honeymoonFund = Math.max(0, latestActualAmount - totalOwed);
 
   // Stats
   document.getElementById('s-paid').textContent = '$' + Math.round(totalPaid).toLocaleString();
@@ -858,13 +869,15 @@ function renderAll() {
 
   // Projected honeymoon card
   document.getElementById('s-honeymoon-projected').textContent = '$' + projectedHoneymoon.toLocaleString();
-  document.getElementById('s-hon-base').textContent = '$' + Math.round(TOTAL_WEEKS * WEEKLY_SAVINGS).toLocaleString();
-  document.getElementById('s-hon-surplus').textContent = '$' + Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS).toLocaleString();
+  document.getElementById('s-hon-base').textContent = latestActual
+    ? '$' + latestActualAmount.toLocaleString() + ' (actual ' + formatDateDisplay(latestActual.milestone_date) + ')'
+    : 'Estimated — update Actual Savings in sheet';
+  document.getElementById('s-hon-surplus').textContent = '$' + Math.round(weeksFromLatest * WEEKLY_SAVINGS).toLocaleString();
   document.getElementById('s-hon-total').textContent = '$' + projectedHoneymoon.toLocaleString();
   document.getElementById('s-honeymoon-breakdown').textContent =
     projectedHoneymoon > 0
-      ? '$864/wk × ' + TOTAL_WEEKS + ' weeks + existing savings − $' + Math.round(totalBudget).toLocaleString() + ' wedding cost'
-      : 'Keep saving $864/wk to build your honeymoon fund';
+      ? 'Update Actual Savings in your sheet each month to keep this accurate'
+      : 'Keep saving $864/wk — update your actual balance in the sheet monthly';
 
   // Alert
   const upcoming = budgetData
@@ -1050,8 +1063,31 @@ function getMonthData(m) {
   const weeksElapsed = Math.max(0, Math.floor((endOfMonth - SAVINGS_START) / (1000*60*60*24*7)));
   const totalBudget  = budgetData.reduce((s,r) => s + (r.budget_amount||0), 0);
 
-  // Total accumulated savings by end of this month (including what was already paid as deposits)
-  const totalSaved = Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS + weeksElapsed * WEEKLY_SAVINGS);
+  // Use real actual savings if available for this month, else project forward from latest actual
+  const monthDate = new Date(m.yr, m.mo - 1, 15);
+  const matchingSaving = savingsData.find(s => {
+    const sd = new Date(s.milestone_date);
+    return sd.getMonth() === monthDate.getMonth() && sd.getFullYear() === monthDate.getFullYear();
+  });
+
+  // Find latest actual before this month to project from
+  const prevActuals = savingsData
+    .filter(s => s.actual_amount !== null && s.actual_amount !== undefined && new Date(s.milestone_date) <= monthDate)
+    .sort((a,b) => new Date(b.milestone_date) - new Date(a.milestone_date));
+  const lastActual = prevActuals[0];
+
+  let totalSaved;
+  if (matchingSaving && matchingSaving.actual_amount !== null) {
+    // Use real value for this exact month
+    totalSaved = Math.round(matchingSaving.actual_amount);
+  } else if (lastActual) {
+    // Project forward from last known actual
+    const weeksSinceLast = Math.max(0, Math.floor((monthDate - new Date(lastActual.milestone_date)) / (1000*60*60*24*7)));
+    totalSaved = Math.round(lastActual.actual_amount + weeksSinceLast * WEEKLY_SAVINGS);
+  } else {
+    // Fallback: pure formula
+    totalSaved = Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS + weeksElapsed * WEEKLY_SAVINGS);
+  }
 
   // All payments made by end of this month (deposits already paid + scheduled future payments)
   const allPayments = getScheduledPayments();
@@ -1073,11 +1109,19 @@ function getMonthData(m) {
 
 let savingsChartInst = null;
 function renderSavings() {
-  const wLine=[], hLine=[], bLine=[];
+  const wLine=[], aLine=[], bLine=[];
   MONTHS.forEach(m => {
     const d = getMonthData(m);
-    wLine.push(d.totalSaved);
-    hLine.push(d.honeymoon);
+    // Target line: pure $864/week formula from start
+    const endOfMonth = new Date(m.yr, m.mo-1, 28);
+    const weeksEl = Math.max(0, Math.floor((endOfMonth - SAVINGS_START) / (1000*60*60*24*7)));
+    wLine.push(Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS + weeksEl * WEEKLY_SAVINGS));
+    // Actual line: real data from sheet or null if not filled in yet
+    const matchSaving = savingsData.find(s => {
+      const sd = new Date(s.milestone_date);
+      return sd.getMonth() === endOfMonth.getMonth() && sd.getFullYear() === endOfMonth.getFullYear();
+    });
+    aLine.push(matchSaving && matchSaving.actual_amount !== null ? matchSaving.actual_amount : null);
     bLine.push(d.balance);
   });
 
@@ -1089,7 +1133,6 @@ function renderSavings() {
       labels: MONTHS.map(m=>m.label),
       datasets: [
         { label:'Total savings', data:wLine, borderColor:'#7B9EC4', backgroundColor:'transparent', borderWidth:1.5, borderDash:[4,3], pointRadius:2 },
-        { label:'Honeymoon surplus', data:hLine, borderColor:'#7B6FA0', backgroundColor:'transparent', borderWidth:1.5, borderDash:[2,2], pointRadius:2 },
         { label:'Balance after payments', data:bLine, borderColor:'#7D9B76', backgroundColor:'transparent', borderWidth:2, pointRadius:3 },
       ]
     },
@@ -1105,7 +1148,7 @@ function renderSavings() {
 
   const leg = document.getElementById('chart-legend');
   leg.innerHTML = '';
-  [['#7B9EC4','Total savings'],['#7B6FA0','Honeymoon surplus'],['#7D9B76','Balance (after payments)']].forEach(([c,l]) => {
+  [['#C8DDD7','Target ($864/wk)'],['#E8A0B0','Actual (from sheet)'],['#7D9B76','Balance after payments']].forEach(([c,l]) => {
     leg.innerHTML += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:${c};display:inline-block;border-radius:2px;"></span>${l}</span>`;
   });
 
@@ -1142,7 +1185,7 @@ function renderSavings() {
     tr.innerHTML = `
       <td>${m.label}</td>
       <td style="color:#7B9EC4;">$${d.totalSaved.toLocaleString()}</td>
-      <td style="color:#7B6FA0;">$${d.honeymoon.toLocaleString()}</td>
+      <td style="color:${d.honeymoon>0?'var(--sage)':'var(--clay)'};">${d.honeymoon>0?'+':''}\$${d.honeymoon.toLocaleString()}</td>
       <td style="color:var(--ink-light);font-size:11px;">$${Math.round(d.totalSaved - d.balance).toLocaleString()}</td>
       <td class="${balClass}">$${d.balance.toLocaleString()}</td>`;
     tr.innerHTML += payCell.trim();
