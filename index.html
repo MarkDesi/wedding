@@ -585,7 +585,7 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-mid);text-align:right;">
           <span>Wedding total = <strong id="s-wedding-total">$58,809</strong></span>
-          <span>Paid so far = <strong id="s-savings-paid">—</strong></span>
+          <span>Vendor deposits = <strong id="s-savings-paid">—</strong></span>
           <span style="border-top:1px solid var(--border);padding-top:4px;font-weight:500;">Still to save = <strong id="s-still-to-save">—</strong></span>
         </div>
       </div>
@@ -631,12 +631,11 @@
           <table>
             <thead>
               <tr>
-                <th style="text-align:left;">Month</th>
-                <th style="color:var(--clay);">Target</th>
-                <th style="color:#E8A0B0;">Actual savings</th>
-                <th style="color:var(--ink-light);">Payments out</th>
-                <th style="color:var(--sage);">Balance</th>
-                <th>Due this month</th>
+                <th style="text-align:left;font-size:11px;font-weight:500;color:var(--ink-light);text-transform:uppercase;letter-spacing:0.05em;">Month</th>
+                <th style="text-align:right;font-size:11px;font-weight:500;color:#A8C5B8;text-transform:uppercase;letter-spacing:0.05em;">Target balance</th>
+                <th style="text-align:right;font-size:11px;font-weight:500;color:#E8A0B0;text-transform:uppercase;letter-spacing:0.05em;">Actual balance</th>
+                <th style="text-align:right;font-size:11px;font-weight:500;color:var(--ink-light);text-transform:uppercase;letter-spacing:0.05em;">Ahead / behind</th>
+                <th style="text-align:right;font-size:11px;font-weight:500;color:var(--ink-light);text-transform:uppercase;letter-spacing:0.05em;">Due this month</th>
               </tr>
             </thead>
             <tbody id="savings-tbody"></tbody>
@@ -868,21 +867,22 @@ function renderAll() {
 
   // Savings progress card
   const actualBalance = latestActual ? latestActualAmount : CURRENT_BALANCE;
-const pctSaved = Math.round((totalPaid + actualBalance) / WEDDING_TOTAL * 100);
-  const stillToSave = Math.max(0, WEDDING_TOTAL - totalPaid - actualBalance);
+const totalSavedOverall = Math.round(totalPaid + actualBalance);
+  const stillToSave = Math.max(0, WEDDING_TOTAL - totalSavedOverall);
+  const pctBar = Math.min(Math.round(totalSavedOverall / WEDDING_TOTAL * 100), 100);
   const pctEl = document.getElementById('s-savings-pct');
   const statusEl = document.getElementById('s-savings-status');
   const paidEl2 = document.getElementById('s-savings-paid');
   const stillEl = document.getElementById('s-still-to-save');
   const barEl = document.getElementById('s-progress-bar');
   const totalEl = document.getElementById('s-wedding-total');
-  if (pctEl) pctEl.textContent = pctSaved + '% funded';
+  if (pctEl) pctEl.textContent = '$' + totalSavedOverall.toLocaleString() + ' saved';
   if (statusEl) statusEl.textContent = latestActual
-    ? 'Actual savings as of ' + formatDateDisplay(latestActual.milestone_date)
-    : 'Update Actual Savings in your sheet each month';
-  if (paidEl2) paidEl2.textContent = '$' + Math.round(totalPaid + actualBalance).toLocaleString();
+    ? 'Deposits paid + bank balance as of ' + formatDateDisplay(latestActual.milestone_date)
+    : 'Deposits paid ($' + Math.round(totalPaid).toLocaleString() + ') + bank balance ($' + Math.round(actualBalance).toLocaleString() + ')';
+  if (paidEl2) paidEl2.textContent = '$' + Math.round(totalPaid).toLocaleString() + ' paid to vendors';
   if (stillEl) stillEl.textContent = '$' + Math.round(stillToSave).toLocaleString();
-  if (barEl) barEl.style.width = Math.min(pctSaved, 100) + '%';
+  if (barEl) barEl.style.width = pctBar + '%';
   if (totalEl) totalEl.textContent = '$' + WEDDING_TOTAL.toLocaleString();
 
   // Alert
@@ -1136,10 +1136,7 @@ let savingsChartInst = null;
 function renderSavings() {
   const totalBudget = budgetData.reduce((s,r) => s + (r.budget_amount||0), 0) || WEDDING_TOTAL;
 
-  // Line 1: Target — flat line at total wedding cost ($58,809)
-  const targetLine = MONTHS.map(() => totalBudget);
-
-  // Line 2: Actual savings — from column M in sheet (null where not filled in yet)
+  // Line 1: Actual savings — from column M in sheet (null where not filled in yet)
   const actualLine = MONTHS.map(m => {
     const endOfMonth = new Date(m.yr, m.mo-1, 28);
     const match = savingsData.find(s => {
@@ -1165,32 +1162,23 @@ function renderSavings() {
       labels: MONTHS.map(m=>m.label),
       datasets: [
         {
-          label: 'Wedding total',
-          data: targetLine,
-          borderColor: '#F5C8D2',
-          backgroundColor: 'transparent',
-          borderWidth: 1.5,
-          borderDash: [6, 4],
-          pointRadius: 0,
-        },
-        {
-          label: 'Actual savings (from sheet)',
+          label: 'Your actual balance',
           data: actualLine,
           borderColor: '#E8A0B0',
           backgroundColor: 'transparent',
-          borderWidth: 2.5,
-          pointRadius: 5,
-          pointStyle: 'circle',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#E8A0B0',
           spanGaps: false,
         },
         {
-          label: 'Running balance',
+          label: 'Target bank balance',
           data: balanceLine,
           borderColor: '#A8C5B8',
           backgroundColor: 'transparent',
           borderWidth: 2,
-          pointRadius: 2,
-          borderDash: [3, 3],
+          pointRadius: 3,
+          pointBackgroundColor: '#A8C5B8',
         },
       ]
     },
@@ -1215,14 +1203,10 @@ function renderSavings() {
   const leg = document.getElementById('chart-legend');
   leg.innerHTML = '';
   [
-    ['#F5C8D2', 'Wedding total ($58,809)', true],
-    ['#E8A0B0', 'Actual savings (update in sheet monthly)', false],
-    ['#A8C5B8', 'Target bank balance (what you should have)', false],
-  ].forEach(([c,l,dashed]) => {
-    const line = dashed
-      ? `<span style="width:16px;border-top:2px dashed ${c};display:inline-block;vertical-align:middle;"></span>`
-      : `<span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block;"></span>`;
-    leg.innerHTML += `<span style="display:flex;align-items:center;gap:4px;">${line}${l}</span>`;
+    ['#E8A0B0', 'Your actual balance (enter on 15th each month)'],
+    ['#A8C5B8', 'Target bank balance (what you should have)'],
+  ].forEach(([c,l]) => {
+    leg.innerHTML += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;border-top:2px solid ${c};display:inline-block;vertical-align:middle;"></span>${l}</span>`;
   });
 
   // Table
@@ -1231,29 +1215,8 @@ function renderSavings() {
   MONTHS.forEach(m => {
     const d = getMonthData(m);
     const hasP = d.monthPayments.length > 0;
-    const balClass = d.balance > 8000 ? 'bal-high' : d.balance > 3000 ? 'bal-mid' : 'bal-low';
-    const totalDue = hasP ? d.monthPayments.reduce((s,p) => s + (p.amount||0), 0) : 0;
-    const payText = hasP ? '$' + Math.round(totalDue).toLocaleString() : '—';
-
-    // Build tooltip rows showing label + amount for each payment
-    const tooltipRows = hasP ? d.monthPayments.map(p => `
-      <div class="pay-tooltip-row">
-        <div class="pay-tooltip-label">${p.label || p.category || 'Payment'}${p.isDefault ? ' <span style="opacity:0.6;">(est.)</span>' : ''}</div>
-        <div class="pay-tooltip-amount">$${Math.round(p.amount||0).toLocaleString()}</div>
-      </div>`).join('') : '';
-
     const tr = document.createElement('tr');
     if (hasP) tr.className = 'has-payment';
-
-    const payCell = hasP
-      ? `<td class="pay-cell" style="font-size:11px;color:var(--clay);font-weight:500;" onclick="this.classList.toggle('open')">
-          ${payText}
-          <div class="pay-tooltip">
-            <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Due this month</div>
-            ${tooltipRows}
-          </div>
-         </td>`
-      : `<td style="font-size:11px;color:#9C9C9C;">—</td>`;
 
     // Find actual savings for this month from sheet
     const monthActual = savingsData.find(s => {
@@ -1261,18 +1224,42 @@ function renderSavings() {
       return sd.getMonth() === m.mo-1 && sd.getFullYear() === m.yr;
     });
     const actualAmt = monthActual && monthActual.actual_amount !== null ? monthActual.actual_amount : null;
-    const targetAmt = monthActual ? monthActual.target_amount : null;
+    const targetKey = m.yr + '-' + m.mo;
+    const targetAmt = TARGET_BANK_BALANCES[targetKey] || null;
+
+    // Ahead / behind
+    const diff = actualAmt !== null && targetAmt !== null ? actualAmt - targetAmt : null;
+    const diffText = diff !== null
+      ? (diff >= 0 ? '+$' + Math.round(diff).toLocaleString() : '-$' + Math.round(Math.abs(diff)).toLocaleString())
+      : '—';
+    const diffColor = diff === null ? 'var(--ink-light)' : diff >= 0 ? 'var(--sage)' : 'var(--clay)';
+
+    // Payments due tooltip
     const allPmts = getScheduledPayments();
-    const endMo = new Date(m.yr, m.mo-1, 28);
-    const paymentsOut = ALREADY_PAID_DEPOSITS + allPmts.filter(p=>p.date<=endMo).reduce((s,p)=>s+p.amount,0);
+    const monthPmts = allPmts.filter(p => p.date.getMonth() === m.mo-1 && p.date.getFullYear() === m.yr);
+    const totalDue = monthPmts.reduce((s,p) => s+(p.amount||0), 0);
+    const tooltipRows = monthPmts.map(p => `
+      <div class="pay-tooltip-row">
+        <div class="pay-tooltip-label">${p.label || p.category || 'Payment'}</div>
+        <div class="pay-tooltip-amount">$${Math.round(p.amount||0).toLocaleString()}</div>
+      </div>`).join('');
+
+    const payCell = monthPmts.length > 0
+      ? `<td class="pay-cell" style="font-size:11px;color:var(--clay);font-weight:500;text-align:right;" onclick="this.classList.toggle('open')">
+          $${Math.round(totalDue).toLocaleString()}
+          <div class="pay-tooltip">
+            <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Due this month</div>
+            ${tooltipRows}
+          </div>
+         </td>`
+      : `<td style="font-size:11px;color:var(--ink-light);text-align:right;">—</td>`;
 
     tr.innerHTML = `
       <td>${m.label}</td>
-      <td style="color:var(--clay);font-size:12px;">${targetAmt ? '$'+Math.round(targetAmt).toLocaleString() : '—'}</td>
-      <td style="color:#E8A0B0;font-weight:${actualAmt?'500':'400'};">${actualAmt !== null ? '$'+Math.round(actualAmt).toLocaleString() : '<span style="color:var(--ink-light);font-size:11px;">not entered</span>'}</td>
-      <td style="color:var(--ink-light);font-size:11px;">$${Math.round(paymentsOut).toLocaleString()}</td>
-      <td class="${balClass}">$${d.balance.toLocaleString()}</td>`;
-    tr.innerHTML += payCell.trim();
+      <td style="color:#A8C5B8;text-align:right;">$${targetAmt ? Math.round(targetAmt).toLocaleString() : '—'}</td>
+      <td style="color:#E8A0B0;font-weight:${actualAmt?'500':'400'};text-align:right;">${actualAmt !== null ? '$'+Math.round(actualAmt).toLocaleString() : '<span style="color:var(--ink-light);font-size:11px;">not entered</span>'}</td>
+      <td style="color:${diffColor};font-weight:500;text-align:right;">${diffText}</td>`;
+    tr.innerHTML += payCell;
     tbody.appendChild(tr);
   });
 }
