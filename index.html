@@ -390,6 +390,38 @@
   .bal-mid    { color: var(--gold); font-weight: 500; }
   .bal-low    { color: var(--clay); font-weight: 500; }
 
+  /* PAYMENT TOOLTIP */
+  .pay-cell { position: relative; cursor: pointer; }
+  .pay-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 100;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    min-width: 160px;
+    text-align: left;
+  }
+  .pay-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%; right: 14px;
+    border: 5px solid transparent;
+    border-top-color: var(--ink);
+  }
+  .pay-cell:hover .pay-tooltip,
+  .pay-cell.open .pay-tooltip { display: block; }
+  .pay-tooltip-row { padding: 3px 0; border-bottom: 0.5px solid rgba(255,255,255,0.15); }
+  .pay-tooltip-row:last-child { border-bottom: none; }
+  .pay-tooltip-label { color: rgba(255,255,255,0.7); font-size: 10px; }
+  .pay-tooltip-amount { color: #fff; font-weight: 500; }
+
   /* REALTIME INDICATOR */
   .realtime-badge {
     display: inline-flex;
@@ -622,10 +654,10 @@ const ALREADY_PAID_DEPOSITS = 9135.23;
 
 // Static Fig Tree scheduled payments (not in sheet)
 const FIGTREE_PAYMENTS = [
-  { date: new Date('2026-07-27'), amount: 3875 },
-  { date: new Date('2027-01-27'), amount: 6875 },
-  { date: new Date('2027-04-27'), amount: 6875 },
-  { date: new Date('2027-07-13'), amount: 6875 },
+  { date: new Date('2026-07-27'), amount: 3875,  label: 'Fig Tree — 1st instalment' },
+  { date: new Date('2027-01-27'), amount: 6875,  label: 'Fig Tree — 2nd instalment' },
+  { date: new Date('2027-04-27'), amount: 6875,  label: 'Fig Tree — 3rd instalment' },
+  { date: new Date('2027-07-13'), amount: 6875,  label: 'Fig Tree — final balance' },
 ];
 
 // ─── SUPABASE CLIENT (no library — direct fetch) ───────────────────────────
@@ -836,16 +868,36 @@ function renderSavings() {
     const d = getMonthData(m);
     const hasP = d.monthPayments.length > 0;
     const balClass = d.balance > 8000 ? 'bal-high' : d.balance > 3000 ? 'bal-mid' : 'bal-low';
-    const payText = hasP ? d.monthPayments.map(p=>'$'+(p.amount||0).toLocaleString()).join(', ') : '—';
+    const totalDue = hasP ? d.monthPayments.reduce((s,p) => s + (p.amount||0), 0) : 0;
+    const payText = hasP ? '$' + Math.round(totalDue).toLocaleString() : '—';
+
+    // Build tooltip rows showing label + amount for each payment
+    const tooltipRows = hasP ? d.monthPayments.map(p => `
+      <div class="pay-tooltip-row">
+        <div class="pay-tooltip-label">${p.label || p.category || 'Payment'}</div>
+        <div class="pay-tooltip-amount">$${Math.round(p.amount||0).toLocaleString()}</div>
+      </div>`).join('') : '';
+
     const tr = document.createElement('tr');
     if (hasP) tr.className = 'has-payment';
+
+    const payCell = hasP
+      ? `<td class="pay-cell" style="font-size:11px;color:var(--clay);font-weight:500;" onclick="this.classList.toggle('open')">
+          ${payText}
+          <div class="pay-tooltip">
+            <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Due this month</div>
+            ${tooltipRows}
+          </div>
+         </td>`
+      : `<td style="font-size:11px;color:#9C9C9C;">—</td>`;
+
     tr.innerHTML = `
       <td>${m.label}</td>
       <td style="color:#7B9EC4;">$${d.weddingSaved.toLocaleString()}</td>
       <td style="color:#7B6FA0;">$${d.honeymoon.toLocaleString()}</td>
       <td>$${d.totalSaved.toLocaleString()}</td>
-      <td class="${balClass}">$${d.balance.toLocaleString()}</td>
-      <td style="font-size:11px;color:${hasP?'#8B2020':'#9C9C9C'};">${payText}</td>`;
+      <td class="${balClass}">$${d.balance.toLocaleString()}</td>`;
+    tr.innerHTML += payCell.trim();
     tbody.appendChild(tr);
   });
 }
