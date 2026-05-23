@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maddi & Mark — Wedding Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --sage:       #7D9B76;
+    --sage-light: #B8CEAE;
+    --sage-pale:  #EFF4EE;
+    --sand:       #C8B89A;
+    --sand-light: #F0E8DC;
+    --sand-pale:  #FAF7F3;
+    --clay:       #B07060;
+    --clay-light: #E8C4B8;
+    --ink:        #2C2C2C;
+    --ink-mid:    #5C5C5C;
+    --ink-light:  #9C9C9C;
+    --border:     #E0DAD2;
+    --white:      #FDFCFB;
+    --purple:     #7B6FA0;
+    --purple-pale:#F0EDF7;
+    --gold:       #C4A882;
+    --radius:     8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--sand-pale);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--ink);
+    color: var(--white);
+    padding: 2rem 1.5rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: rgba(200,184,154,0.08);
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; left: 30%;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: rgba(125,155,118,0.08);
+  }
+  .header-eyebrow {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--sand);
+    margin-bottom: 6px;
+  }
+  .header-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(28px, 7vw, 42px);
+    font-weight: 300;
+    line-height: 1.1;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+  .header-title em { font-style: italic; color: var(--sand); }
+  .header-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 1.5rem;
+  }
+  .header-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 99px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+  }
+  .countdown-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--sand);
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--sage);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* LOADING */
+  #loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--ink-light);
+    font-size: 13px;
+  }
+  .spinner {
+    width: 24px; height: 24px;
+    border: 2px solid var(--border);
+    border-top-color: var(--sage);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* MAIN */
+  main { padding: 1.25rem; max-width: 800px; margin: 0 auto; }
+
+  /* STAT CARDS */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .stat-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .stat-label {
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .stat-sub { font-size: 11px; color: var(--ink-light); margin-top: 3px; }
+  .stat-card.sage { background: var(--sage-pale); border-color: var(--sage-light); }
+  .stat-card.sage .stat-value { color: var(--sage); }
+  .stat-card.purple { background: var(--purple-pale); border-color: #C8BFDF; }
+  .stat-card.purple .stat-value { color: var(--purple); }
+  .stat-card.clay { background: #FAF0ED; border-color: var(--clay-light); }
+  .stat-card.clay .stat-value { color: var(--clay); }
+
+  /* ALERT */
+  .alert {
+    background: #FEF3EF;
+    border: 1px solid var(--clay-light);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: var(--clay);
+  }
+  .alert strong { font-weight: 500; display: block; margin-bottom: 2px; font-size: 13px; }
+
+  /* WEEKLY BREAKDOWN */
+  .weekly-bar {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .weekly-bar-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-light);
+    margin-bottom: 10px;
+  }
+  .weekly-segments {
+    display: flex;
+    border-radius: 99px;
+    overflow: hidden;
+    height: 8px;
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+  .seg-wedding { background: var(--sage); flex: 777; }
+  .seg-honeymoon { background: var(--purple); flex: 87; }
+  .weekly-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--ink-mid);
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    display: inline-block;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 7px 4px;
+    border: none;
+    background: transparent;
+    border-radius: 5px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--ink-light);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: var(--ink);
+    color: var(--white);
+    font-weight: 500;
+  }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* CARD */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 10px;
+  }
+  .card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .card-sub { font-size: 11px; color: var(--ink-light); margin-bottom: 14px; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: right;
+    padding: 6px 8px;
+    color: var(--ink-light);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+  }
+  th:first-child { text-align: left; }
+  td {
+    padding: 8px 8px;
+    text-align: right;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--ink);
+  }
+  td:first-child { text-align: left; color: var(--ink-mid); }
+  tr:last-child td { border-bottom: none; }
+  tr.has-payment { background: #FFFAF7; }
+  tr.has-payment td:first-child { color: var(--ink); font-weight: 500; }
+
+  /* VENDOR ROWS */
+  .vendor-section {
+    background: var(--sand-light);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .vendor-section-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--sand);
+    margin-bottom: 8px;
+  }
+  .vrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 0.5px solid rgba(0,0,0,0.06);
+    font-size: 13px;
+  }
+  .vrow:last-child { border-bottom: none; }
+  .vname { flex: 1; }
+  .vname p { font-weight: 500; font-size: 13px; }
+  .vcat { font-size: 11px; color: var(--ink-light); }
+  .vamt { text-align: right; margin-right: 8px; font-weight: 500; font-size: 13px; }
+
+  .pill {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 99px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .p-danger  { background: #FEECEC; color: #8B2020; }
+  .p-warn    { background: #FEF3E2; color: #7A4D0A; }
+  .p-info    { background: #EBF4FE; color: #1A5FA8; }
+  .p-ok      { background: var(--sage-pale); color: #3A6E35; }
+  .p-muted   { background: var(--sand-light); color: var(--ink-light); }
+  .p-paid    { background: var(--sage-pale); color: var(--sage); }
+
+  /* TIMELINE */
+  .timeline-row {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .timeline-row:last-child { border-bottom: none; }
+  .tl-dot-col { display: flex; flex-direction: column; align-items: center; padding-top: 2px; width: 12px; flex-shrink: 0; }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .tl-line { width: 1px; flex: 1; min-height: 16px; background: var(--border); margin-top: 4px; }
+
+  /* PROGRESS BARS */
+  .prog-track {
+    background: var(--sand-light);
+    border-radius: 99px;
+    height: 5px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .prog-fill { height: 100%; border-radius: 99px; }
+
+  /* BANK DETAILS */
+  .bank-box {
+    background: var(--sand-pale);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--ink-mid);
+    margin-top: 12px;
+  }
+  .bank-box strong { color: var(--ink); }
+
+  /* TAG CLOUD */
+  .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+  /* BALANCE COLOR */
+  .bal-high   { color: var(--sage); font-weight: 500; }
+  .bal-mid    { color: var(--gold); font-weight: 500; }
+  .bal-low    { color: var(--clay); font-weight: 500; }
+
+  /* REALTIME INDICATOR */
+  .realtime-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--sage);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    font-size: 11px;
+    color: var(--ink-light);
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="header-eyebrow">Wedding Finance</p>
+  <h1 class="header-title">Maddi <em>&</em> Mark</h1>
+  <p class="header-sub">Fig Tree Byron Bay · 27 July 2027</p>
+  <div class="header-countdown">
+    <span class="countdown-num" id="weeks-left">—</span>
+    <span>weeks to go</span>
+    <span style="width:1px;height:12px;background:rgba(255,255,255,0.15);"></span>
+    <span class="live-dot"></span>
+    <span style="font-size:10px;letter-spacing:0.05em;">LIVE</span>
+  </div>
+</header>
+
+<main>
+  <div id="loading">
+    <div class="spinner"></div>
+    <span>Loading your data…</span>
+  </div>
+
+  <div id="content" style="display:none;">
+
+    <div id="alert-box" class="alert" style="display:none;">
+      <strong id="alert-title"></strong>
+      <span id="alert-body"></span>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card sage">
+        <p class="stat-label">Paid so far</p>
+        <p class="stat-value" id="s-paid">—</p>
+        <p class="stat-sub" id="s-paid-pct">— of budget</p>
+      </div>
+      <div class="stat-card clay">
+        <p class="stat-label">Still owed</p>
+        <p class="stat-value" id="s-owed">—</p>
+        <p class="stat-sub" id="s-owed-sub">To all vendors</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">Total budget</p>
+        <p class="stat-value" id="s-budget">—</p>
+        <p class="stat-sub">All vendors combined</p>
+      </div>
+      <div class="stat-card purple">
+        <p class="stat-label">Honeymoon fund</p>
+        <p class="stat-value" id="s-honeymoon">—</p>
+        <p class="stat-sub" id="s-honeymoon-sub">$87 × weeks saved</p>
+      </div>
+    </div>
+
+    <div class="weekly-bar">
+      <p class="weekly-bar-label">Weekly savings — $864 total</p>
+      <div class="weekly-segments">
+        <div class="seg-wedding"></div>
+        <div class="seg-honeymoon"></div>
+      </div>
+      <div class="weekly-legend">
+        <span><span class="legend-dot" style="background:var(--sage);"></span>$777 wedding</span>
+        <span><span class="legend-dot" style="background:var(--purple);"></span>$87 honeymoon</span>
+        <span style="margin-left:auto;color:var(--ink-light);font-size:11px;" id="weeks-label"></span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('savings',this)">Savings</button>
+      <button class="tab-btn" onclick="showTab('payments',this)">Payments</button>
+      <button class="tab-btn" onclick="showTab('figtree',this)">Fig Tree</button>
+      <button class="tab-btn" onclick="showTab('budget',this)">Budget</button>
+    </div>
+
+    <!-- SAVINGS TAB -->
+    <div id="tab-savings" class="view active">
+      <div class="card">
+        <p class="card-title">Monthly tracker</p>
+        <p class="card-sub">Balance = wedding savings minus scheduled payments to date</p>
+        <div class="realtime-badge"><span class="live-dot" style="width:5px;height:5px;"></span>Updates when you edit the sheet</div>
+        <div style="position:relative;height:220px;margin-bottom:12px;">
+          <canvas id="savingsChart"></canvas>
+        </div>
+        <div id="chart-legend" style="display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--ink-light);"></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Month by month</p>
+        <p class="card-sub">Highlighted rows have payments due that month</p>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left;">Month</th>
+                <th>Wedding</th>
+                <th style="color:var(--purple);">Honeymoon</th>
+                <th>Total</th>
+                <th style="color:var(--sage);">Balance</th>
+                <th>Due this month</th>
+              </tr>
+            </thead>
+            <tbody id="savings-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENTS TAB -->
+    <div id="tab-payments" class="view">
+      <div class="card">
+        <p class="card-title">All vendor payments</p>
+        <p class="card-sub">Sorted by urgency · updates live from your spreadsheet</p>
+        <div id="fig-tree-block" class="vendor-section">
+          <p class="vendor-section-label">Fig Tree Byron Bay — one transfer per instalment</p>
+          <div class="vrow"><div class="vname"><p>Remainder of 1st 25%</p><p class="vcat">12 months prior · 27 Jul 2026</p></div><div class="vamt">$3,875</div><span class="pill p-danger">27 Jul 2026</span></div>
+          <div class="vrow"><div class="vname"><p>2nd instalment — 25%</p><p class="vcat">6 months prior · 27 Jan 2027</p></div><div class="vamt">$6,875</div><span class="pill p-warn">27 Jan 2027</span></div>
+          <div class="vrow"><div class="vname"><p>3rd instalment — 25%</p><p class="vcat">3 months prior · 27 Apr 2027</p></div><div class="vamt">$6,875</div><span class="pill p-info">27 Apr 2027</span></div>
+          <div class="vrow"><div class="vname"><p>Final balance</p><p class="vcat">14 days prior · 13 Jul 2027</p></div><div class="vamt">$6,875</div><span class="pill p-ok">13 Jul 2027</span></div>
+        </div>
+        <div id="vendor-list"></div>
+        <div id="no-date-section" style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border);">
+          <p style="font-size:11px;color:var(--ink-light);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;">No deadline set</p>
+          <div id="no-date-tags" class="tag-cloud"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIG TREE TAB -->
+    <div id="tab-figtree" class="view">
+      <div class="card">
+        <p class="card-title">Fig Tree Byron Bay</p>
+        <p class="card-sub">Venue · Planning · Catering · Total $27,500 · 25% instalments</p>
+        <div class="stat-grid" style="margin-bottom:1.25rem;">
+          <div style="background:var(--sage-pale);border-radius:var(--radius);padding:10px 12px;">
+            <p style="font-size:11px;color:var(--sage);">Paid</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--sage);">$3,000</p>
+          </div>
+          <div style="background:#FEF3EF;border-radius:var(--radius);padding:10px 12px;">
+            <p style="font-size:11px;color:var(--clay);">Remaining</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--clay);">$24,500</p>
+          </div>
+          <div style="background:var(--sand-pale);border-radius:var(--radius);padding:10px 12px;">
+            <p style="font-size:11px;color:var(--ink-light);">Total</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:22px;">$27,500</p>
+          </div>
+          <div style="background:var(--sand-pale);border-radius:var(--radius);padding:10px 12px;">
+            <p style="font-size:11px;color:var(--ink-light);">Per instalment</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:22px;">$6,875</p>
+          </div>
+        </div>
+        <div id="ft-timeline">
+          <div class="timeline-row"><div class="tl-dot-col"><div class="tl-dot" style="background:var(--sage);"></div><div class="tl-line"></div></div><div style="flex:1;"><p style="font-weight:500;">Initial retainer</p><p style="font-size:12px;color:var(--ink-light);">Booked 12+ months in advance</p></div><div style="text-align:right;"><p style="font-weight:500;color:var(--sage);">$3,000</p><p style="font-size:11px;color:var(--ink-light);">Paid ✓</p></div></div>
+          <div class="timeline-row"><div class="tl-dot-col"><div class="tl-dot" style="background:var(--clay);"></div><div class="tl-line"></div></div><div style="flex:1;"><p style="font-weight:500;">Remainder of 1st 25%</p><p style="font-size:12px;color:var(--ink-light);">12 months prior · 27 Jul 2026</p></div><div style="text-align:right;"><p style="font-weight:500;color:var(--clay);">$3,875</p><p style="font-size:11px;color:var(--ink-light);">~9 weeks</p></div></div>
+          <div class="timeline-row"><div class="tl-dot-col"><div class="tl-dot" style="background:var(--sand);"></div><div class="tl-line"></div></div><div style="flex:1;"><p style="font-weight:500;">2nd instalment — 25%</p><p style="font-size:12px;color:var(--ink-light);">6 months prior · 27 Jan 2027</p></div><div style="text-align:right;"><p style="font-weight:500;color:var(--sand);">$6,875</p><p style="font-size:11px;color:var(--ink-light);">~35 weeks</p></div></div>
+          <div class="timeline-row"><div class="tl-dot-col"><div class="tl-dot" style="background:#7B9EC4;"></div><div class="tl-line"></div></div><div style="flex:1;"><p style="font-weight:500;">3rd instalment — 25%</p><p style="font-size:12px;color:var(--ink-light);">3 months prior · 27 Apr 2027</p></div><div style="text-align:right;"><p style="font-weight:500;color:#7B9EC4;">$6,875</p><p style="font-size:11px;color:var(--ink-light);">~48 weeks</p></div></div>
+          <div class="timeline-row"><div class="tl-dot-col"><div class="tl-dot" style="background:var(--ink-light);"></div></div><div style="flex:1;"><p style="font-weight:500;">Final balance</p><p style="font-size:12px;color:var(--ink-light);">14 days prior · 13 Jul 2027</p></div><div style="text-align:right;"><p style="font-weight:500;color:var(--ink-light);">$6,875</p><p style="font-size:11px;color:var(--ink-light);">~60 weeks</p></div></div>
+        </div>
+        <div class="bank-box">
+          <p>Pay to: <strong>Byron Bay Weddings</strong> · BSB 082 522 · Acc 844 854 946</p>
+          <p style="margin-top:4px;">Reference: <strong>maddimark270727</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUDGET TAB -->
+    <div id="tab-budget" class="view">
+      <div class="card">
+        <p class="card-title">Budget by category</p>
+        <p class="card-sub">Progress bars show % paid · live from your spreadsheet</p>
+        <div id="budget-bars"></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Overall progress</p>
+        <div style="position:relative;height:220px;">
+          <canvas id="donutChart"></canvas>
+        </div>
+        <div id="donut-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--ink-light);"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<footer>Maddi & Mark · Byron Bay · July 2027 ·  made with love</footer>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://spnobkecunealgdelvoi.supabase.co';         // ← swap in
+const SUPABASE_ANON_KEY = 'sb_publishable_tHKcXaS_YLUFuJYcD9PMWw_9aymhWVh'; // ← swap in
+
+const WEDDING_DATE = new Date('2027-07-27');
+const SAVINGS_START = new Date('2026-05-15');
+const CURRENT_SAVINGS = 5308.46;
+const WEEKLY_WEDDING = 777;
+const WEEKLY_HONEYMOON = 87;
+const WEEKLY_TOTAL = 864;
+const ALREADY_PAID_DEPOSITS = 9135.23;
+
+// Static Fig Tree scheduled payments (not in sheet)
+const FIGTREE_PAYMENTS = [
+  { date: new Date('2026-07-27'), amount: 3875 },
+  { date: new Date('2027-01-27'), amount: 6875 },
+  { date: new Date('2027-04-27'), amount: 6875 },
+  { date: new Date('2027-07-13'), amount: 6875 },
+];
+
+// ─── SUPABASE CLIENT ───────────────────────────────────────────────────────
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── STATE ─────────────────────────────────────────────────────────────────
+let budgetData = [];
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+async function init() {
+  updateCountdown();
+  await loadData();
+  renderAll();
+  subscribeRealtime();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+}
+
+async function loadData() {
+  const { data, error } = await db
+    .from('wedding_budget')
+    .select('*')
+    .order('budget_amount', { ascending: false });
+  if (data) budgetData = data;
+}
+
+function subscribeRealtime() {
+  db.channel('wedding-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'wedding_budget' }, async () => {
+      await loadData();
+      renderAll();
+    })
+    .subscribe();
+}
+
+// ─── COUNTDOWN ─────────────────────────────────────────────────────────────
+function updateCountdown() {
+  const today = new Date();
+  const weeks = Math.floor((WEDDING_DATE - today) / (1000*60*60*24*7));
+  document.getElementById('weeks-left').textContent = weeks;
+  document.getElementById('weeks-label').textContent = weeks + ' weeks remaining';
+}
+
+// ─── RENDER ALL ────────────────────────────────────────────────────────────
+function renderAll() {
+  const totalBudget = budgetData.reduce((s,r) => s + (r.budget_amount||0), 0);
+  const totalPaid   = budgetData.reduce((s,r) => s + (r.paid_amount||0), 0);
+  const totalOwed   = totalBudget - totalPaid;
+  const today = new Date();
+  const weeksElapsed = Math.max(0, Math.floor((today - SAVINGS_START) / (1000*60*60*24*7)));
+  const honeymoonFund = Math.round(weeksElapsed * WEEKLY_HONEYMOON);
+
+  // Stats
+  document.getElementById('s-paid').textContent = '$' + Math.round(totalPaid).toLocaleString();
+  document.getElementById('s-paid-pct').textContent = Math.round(totalPaid/totalBudget*100) + '% of budget';
+  document.getElementById('s-owed').textContent = '$' + Math.round(totalOwed).toLocaleString();
+  document.getElementById('s-budget').textContent = '$' + Math.round(totalBudget).toLocaleString();
+  document.getElementById('s-honeymoon').textContent = '$' + honeymoonFund.toLocaleString();
+
+  // Alert
+  const upcoming = budgetData
+    .filter(r => r.next_payment_date)
+    .sort((a,b) => new Date(a.next_payment_date) - new Date(b.next_payment_date))
+    .find(r => new Date(r.next_payment_date) > today);
+
+  if (upcoming) {
+    const daysAway = Math.ceil((new Date(upcoming.next_payment_date) - today) / (1000*60*60*24));
+    const weeksAway = Math.floor(daysAway / 7);
+    document.getElementById('alert-box').style.display = 'block';
+    document.getElementById('alert-title').textContent = 'Next payment in ~' + weeksAway + ' weeks';
+    document.getElementById('alert-body').textContent =
+      upcoming.category + ' · $' + Math.round(upcoming.remaining_amount||0).toLocaleString() +
+      ' due ' + formatDateDisplay(upcoming.next_payment_date);
+  }
+
+  renderSavings();
+  renderPayments();
+  renderBudget(totalBudget, totalPaid);
+}
+
+// ─── SAVINGS ───────────────────────────────────────────────────────────────
+const MONTHS = [
+  {label:"May'26",yr:2026,mo:5},{label:"Jun'26",yr:2026,mo:6},
+  {label:"Jul'26",yr:2026,mo:7},{label:"Aug'26",yr:2026,mo:8},
+  {label:"Sep'26",yr:2026,mo:9},{label:"Oct'26",yr:2026,mo:10},
+  {label:"Nov'26",yr:2026,mo:11},{label:"Dec'26",yr:2026,mo:12},
+  {label:"Jan'27",yr:2027,mo:1},{label:"Feb'27",yr:2027,mo:2},
+  {label:"Mar'27",yr:2027,mo:3},{label:"Apr'27",yr:2027,mo:4},
+  {label:"May'27",yr:2027,mo:5},{label:"Jun'27",yr:2027,mo:6},
+  {label:"Jul'27",yr:2027,mo:7},
+];
+
+// All scheduled payments (sheet + Fig Tree instalments)
+function getScheduledPayments() {
+  const payments = [...FIGTREE_PAYMENTS];
+  const vendorPayments = budgetData
+    .filter(r => r.next_payment_date && r.remaining_amount > 0)
+    .filter(r => !['Venue','Planning Fee','Catering Food'].includes(r.category))
+    .map(r => ({ date: new Date(r.next_payment_date), amount: r.remaining_amount, label: r.category }));
+  return [...payments, ...vendorPayments];
+}
+
+function getMonthData(m) {
+  const endOfMonth = new Date(m.yr, m.mo - 1, 28);
+  const weeksElapsed = Math.max(0, Math.floor((endOfMonth - SAVINGS_START) / (1000*60*60*24*7)));
+  const weddingSaved = Math.round(CURRENT_SAVINGS + weeksElapsed * WEEKLY_WEDDING);
+  const honeymoon = Math.round(weeksElapsed * WEEKLY_HONEYMOON);
+  const totalSaved = weddingSaved + honeymoon;
+  const allPayments = getScheduledPayments();
+  const paidOut = ALREADY_PAID_DEPOSITS + allPayments
+    .filter(p => p.date <= endOfMonth)
+    .reduce((s,p) => s + p.amount, 0);
+  const balance = Math.max(0, weddingSaved + ALREADY_PAID_DEPOSITS - paidOut);
+  const monthPayments = allPayments.filter(p =>
+    p.date.getMonth() === m.mo-1 && p.date.getFullYear() === m.yr
+  );
+  return { weddingSaved, honeymoon, totalSaved, balance, monthPayments };
+}
+
+let savingsChartInst = null;
+function renderSavings() {
+  const wLine=[], hLine=[], bLine=[];
+  MONTHS.forEach(m => {
+    const d = getMonthData(m);
+    wLine.push(d.weddingSaved);
+    hLine.push(d.honeymoon);
+    bLine.push(d.balance);
+  });
+
+  const ctx = document.getElementById('savingsChart');
+  if (savingsChartInst) savingsChartInst.destroy();
+  savingsChartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: MONTHS.map(m=>m.label),
+      datasets: [
+        { label:'Wedding savings', data:wLine, borderColor:'#7B9EC4', backgroundColor:'transparent', borderWidth:1.5, borderDash:[4,3], pointRadius:2 },
+        { label:'Honeymoon', data:hLine, borderColor:'#7B6FA0', backgroundColor:'transparent', borderWidth:1.5, borderDash:[2,2], pointRadius:2 },
+        { label:'Balance after payments', data:bLine, borderColor:'#7D9B76', backgroundColor:'transparent', borderWidth:2, pointRadius:3 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>' $'+ctx.raw.toLocaleString() } } },
+      scales:{
+        y:{ ticks:{ callback:v=>'$'+(v/1000).toFixed(0)+'k', font:{size:10}, color:'#9C9C9C' }, grid:{color:'rgba(0,0,0,0.04)'} },
+        x:{ ticks:{ font:{size:10}, maxRotation:45, autoSkip:false, color:'#9C9C9C' } }
+      }
+    }
+  });
+
+  const leg = document.getElementById('chart-legend');
+  leg.innerHTML = '';
+  [['#7B9EC4','Wedding target'],['#7B6FA0','Honeymoon'],['#7D9B76','Balance (after payments)']].forEach(([c,l]) => {
+    leg.innerHTML += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:${c};display:inline-block;border-radius:2px;"></span>${l}</span>`;
+  });
+
+  // Table
+  const tbody = document.getElementById('savings-tbody');
+  tbody.innerHTML = '';
+  MONTHS.forEach(m => {
+    const d = getMonthData(m);
+    const hasP = d.monthPayments.length > 0;
+    const balClass = d.balance > 8000 ? 'bal-high' : d.balance > 3000 ? 'bal-mid' : 'bal-low';
+    const payText = hasP ? d.monthPayments.map(p=>'$'+(p.amount||0).toLocaleString()).join(', ') : '—';
+    const tr = document.createElement('tr');
+    if (hasP) tr.className = 'has-payment';
+    tr.innerHTML = `
+      <td>${m.label}</td>
+      <td style="color:#7B9EC4;">$${d.weddingSaved.toLocaleString()}</td>
+      <td style="color:#7B6FA0;">$${d.honeymoon.toLocaleString()}</td>
+      <td>$${d.totalSaved.toLocaleString()}</td>
+      <td class="${balClass}">$${d.balance.toLocaleString()}</td>
+      <td style="font-size:11px;color:${hasP?'#8B2020':'#9C9C9C'};">${payText}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─── PAYMENTS ──────────────────────────────────────────────────────────────
+function renderPayments() {
+  const vendorList = document.getElementById('vendor-list');
+  const noDateTags = document.getElementById('no-date-tags');
+  vendorList.innerHTML = '';
+  noDateTags.innerHTML = '';
+
+  const today = new Date();
+  const withDate = budgetData
+    .filter(r => r.next_payment_date && !['Venue','Planning Fee','Catering Food'].includes(r.category))
+    .sort((a,b) => new Date(a.next_payment_date)-new Date(b.next_payment_date));
+
+  const noDate = budgetData.filter(r => !r.next_payment_date && r.remaining_amount > 0);
+
+  withDate.forEach(r => {
+    const dDate = new Date(r.next_payment_date);
+    const daysAway = Math.ceil((dDate-today)/(1000*60*60*24));
+    const pillClass = daysAway < 60 ? 'p-danger' : daysAway < 180 ? 'p-warn' : daysAway < 300 ? 'p-info' : 'p-ok';
+    const row = document.createElement('div');
+    row.className = 'vrow';
+    row.innerHTML = `
+      <div class="vname"><p>${r.category}</p><p class="vcat">${r.vendor||''}</p></div>
+      <div class="vamt">$${Math.round(r.remaining_amount||0).toLocaleString()}</div>
+      <span class="pill ${pillClass}">${formatDateDisplay(r.next_payment_date)}</span>`;
+    vendorList.appendChild(row);
+  });
+
+  noDate.forEach(r => {
+    const tag = document.createElement('span');
+    tag.className = 'pill p-muted';
+    tag.textContent = r.category + ' $' + Math.round(r.remaining_amount||0).toLocaleString();
+    noDateTags.appendChild(tag);
+  });
+}
+
+// ─── BUDGET ────────────────────────────────────────────────────────────────
+let donutInst = null;
+function renderBudget(totalBudget, totalPaid) {
+  const bars = document.getElementById('budget-bars');
+  bars.innerHTML = '';
+  const top = [...budgetData].sort((a,b)=>b.budget_amount-a.budget_amount).slice(0,10);
+  const maxBudget = top[0]?.budget_amount || 1;
+  top.forEach(r => {
+    const pct = Math.round(((r.paid_amount||0)/r.budget_amount)*100);
+    const barW = Math.round((r.budget_amount/maxBudget)*100);
+    const div = document.createElement('div');
+    div.style.marginBottom = '10px';
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-light);margin-bottom:3px;">
+        <span style="color:var(--ink);">${r.category}</span>
+        <span>$${r.budget_amount.toLocaleString()} <span style="color:var(--ink-light);">(${pct}% paid)</span></span>
+      </div>
+      <div style="background:var(--sand-light);border-radius:99px;height:5px;overflow:hidden;width:${barW}%;">
+        <div style="width:${pct}%;height:100%;background:var(--sage);border-radius:99px;transition:width 0.6s;"></div>
+      </div>`;
+    bars.appendChild(div);
+  });
+
+  // Donut
+  const groups = [
+    { label:'Venue & catering', keys:['Venue','Planning Fee','Catering Food','Catering Drinks'], color:'#7D9B76' },
+    { label:'Photo & video',    keys:['Photography','Videography'], color:'#7B9EC4' },
+    { label:'Attire',           keys:['Dress & Accessories','Suit & Accessories'], color:'#C4A882' },
+    { label:'Music',            keys:['Acoustic Music & DJ'], color:'#7B6FA0' },
+    { label:'Flowers & decor',  keys:['Flowers','Decorations'], color:'#B8CEAE' },
+    { label:'Other',            keys:[], color:'#9C9C9C' },
+  ];
+  const definedKeys = groups.flatMap(g=>g.keys);
+  const groupValues = groups.map(g => {
+    if (g.label === 'Other') {
+      return budgetData.filter(r=>!definedKeys.includes(r.category)).reduce((s,r)=>s+(r.budget_amount||0),0);
+    }
+    return budgetData.filter(r=>g.keys.includes(r.category)).reduce((s,r)=>s+(r.budget_amount||0),0);
+  });
+
+  const ctx2 = document.getElementById('donutChart');
+  if (donutInst) donutInst.destroy();
+  donutInst = new Chart(ctx2, {
+    type:'doughnut',
+    data:{ labels:groups.map(g=>g.label), datasets:[{ data:groupValues, backgroundColor:groups.map(g=>g.color), borderWidth:2, borderColor:'#FDFCFB' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>' $'+ctx.raw.toLocaleString()+' ('+Math.round(ctx.raw/totalBudget*100)+'%)' } } } }
+  });
+  const leg = document.getElementById('donut-legend');
+  leg.innerHTML = '';
+  groups.forEach((g,i) => {
+    if (groupValues[i] > 0)
+      leg.innerHTML += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${g.color};"></span>${g.label}</span>`;
+  });
+}
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+function formatDateDisplay(str) {
+  if (!str) return 'TBC';
+  const d = new Date(str);
+  return d.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'2-digit' });
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── GO ────────────────────────────────────────────────────────────────────
+init().catch(err => {
+  document.getElementById('loading').innerHTML =
+    '<p style="color:#B07060;font-size:13px;">Could not load data. Check your Supabase credentials.</p>';
+  console.error(err);
+});
+</script>
+</body>
+</html>
