@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Maddi & Mark — Wedding Dashboard</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="M&M Wedding">
 <meta name="theme-color" content="#FDE8EE">
@@ -1067,7 +1068,7 @@ function getMonthData(m) {
   const monthPayments = allPayments.filter(p =>
     p.date.getMonth() === m.mo-1 && p.date.getFullYear() === m.yr
   );
-  return { weddingSaved, honeymoon, totalSaved, balance, monthPayments };
+  return { totalSaved, honeymoon, balance, monthPayments };
 }
 
 let savingsChartInst = null;
@@ -1075,7 +1076,7 @@ function renderSavings() {
   const wLine=[], hLine=[], bLine=[];
   MONTHS.forEach(m => {
     const d = getMonthData(m);
-    wLine.push(d.weddingSaved);
+    wLine.push(d.totalSaved);
     hLine.push(d.honeymoon);
     bLine.push(d.balance);
   });
