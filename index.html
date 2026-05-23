@@ -564,10 +564,10 @@
         <p class="stat-value" id="s-budget">—</p>
         <p class="stat-sub">All vendors combined</p>
       </div>
-      <div class="stat-card purple">
-        <p class="stat-label">Honeymoon fund</p>
-        <p class="stat-value" id="s-honeymoon">—</p>
-        <p class="stat-sub" id="s-honeymoon-sub">Surplus so far</p>
+      <div class="stat-card" style="background:var(--yellow-pale);border-color:#EDE0A0;">
+        <p class="stat-label">Actual savings</p>
+        <p class="stat-value" id="s-actual-savings" style="color:var(--ink);">—</p>
+        <p class="stat-sub" id="s-actual-savings-sub">Most recent entry</p>
       </div>
       <div class="stat-card" style="background:var(--blue-pale);border-color:var(--blue);">
         <p class="stat-label">Confirmed guests</p>
@@ -579,25 +579,28 @@
     <div style="background:linear-gradient(135deg,var(--pink-pale),var(--blue-pale));border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
         <div>
-          <p style="font-size:11px;font-weight:400;letter-spacing:0.08em;text-transform:uppercase;color:var(--clay);margin-bottom:4px;">Projected honeymoon total by wedding day</p>
-          <p style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:400;color:var(--clay);line-height:1;" id="s-honeymoon-projected">—</p>
-          <p style="font-size:11px;color:var(--ink-light);margin-top:4px;" id="s-honeymoon-breakdown">Calculating…</p>
+          <p style="font-size:11px;font-weight:400;letter-spacing:0.08em;text-transform:uppercase;color:var(--clay);margin-bottom:4px;">Savings progress</p>
+          <p style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:400;color:var(--clay);line-height:1;" id="s-savings-pct">—</p>
+          <p style="font-size:11px;color:var(--ink-light);margin-top:4px;" id="s-savings-status">Update Actual Savings in your sheet each month</p>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-mid);text-align:right;">
-          <span>Latest actual savings = <strong id="s-hon-base">—</strong></span>
-          <span>+ $864/wk projected = <strong id="s-hon-surplus">—</strong></span>
-          <span style="border-top:1px solid #C8BFDF;padding-top:4px;font-weight:500;">Total = <strong id="s-hon-total">—</strong></span>
+          <span>Wedding total = <strong id="s-wedding-total">$58,809</strong></span>
+          <span>Paid so far = <strong id="s-savings-paid">—</strong></span>
+          <span style="border-top:1px solid var(--border);padding-top:4px;font-weight:500;">Still to save = <strong id="s-still-to-save">—</strong></span>
         </div>
+      </div>
+      <div style="background:var(--sand-light);border-radius:99px;height:6px;overflow:hidden;margin-top:12px;">
+        <div id="s-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,var(--sage),var(--clay));border-radius:99px;transition:width 0.6s;"></div>
       </div>
     </div>
 
     <div class="weekly-bar">
       <p class="weekly-bar-label">Weekly savings — $864 / week</p>
       <div style="background:var(--sand-light);border-radius:99px;height:8px;overflow:hidden;margin-bottom:10px;">
-        <div style="width:100%;height:100%;background:linear-gradient(90deg,var(--sage),var(--purple));border-radius:99px;"></div>
+        <div style="width:100%;height:100%;background:linear-gradient(90deg,var(--sage),var(--clay));border-radius:99px;"></div>
       </div>
       <div class="weekly-legend">
-        <span><span class="legend-dot" style="background:linear-gradient(90deg,var(--sage),var(--purple));border-radius:2px;"></span>Saving $864/wk · whatever exceeds wedding cost = honeymoon</span>
+        <span><span class="legend-dot" style="background:linear-gradient(90deg,var(--sage),var(--clay));border-radius:2px;"></span>Saving $864/wk toward $58,809 wedding total</span>
         <span style="margin-left:auto;color:var(--ink-light);font-size:11px;" id="weeks-label"></span>
       </div>
     </div>
@@ -629,9 +632,9 @@
             <thead>
               <tr>
                 <th style="text-align:left;">Month</th>
-                <th>Total saved</th>
-                <th style="color:var(--sage);">Surplus</th>
-                <th style="color:var(--ink-light);">Paid out</th>
+                <th style="color:var(--clay);">Target</th>
+                <th style="color:#E8A0B0;">Actual savings</th>
+                <th style="color:var(--ink-light);">Payments out</th>
                 <th style="color:var(--sage);">Balance</th>
                 <th>Due this month</th>
               </tr>
@@ -762,7 +765,8 @@ const SAVINGS_START = new Date('2026-05-15');
 const CURRENT_SAVINGS = 5308.46;
 const WEEKLY_SAVINGS = 864;       // constant — never changes
 const ALREADY_PAID_DEPOSITS = 9135.23;
-const TOTAL_WEEKS = 57;           // savings start (May 15 2026) to wedding (Jul 29 2027)
+const TOTAL_WEEKS = 57;
+const WEDDING_TOTAL = 58809;      // from spreadsheet B4:C4
 
 // Static Fig Tree scheduled payments (not in sheet)
 const FIGTREE_PAYMENTS = [
@@ -839,45 +843,45 @@ function renderAll() {
   const today = new Date();
   const weeksElapsed = Math.max(0, Math.floor((today - SAVINGS_START) / (1000*60*60*24*7)));
 
-  // ── Use real actual savings from sheet if available ───────────────────────
-  // Find the most recent month where actual savings was entered
+  // ── Latest actual savings from sheet ────────────────────────────────────
   const latestActual = savingsData
     .filter(s => s.actual_amount !== null && s.actual_amount !== undefined)
     .sort((a,b) => new Date(b.milestone_date) - new Date(a.milestone_date))[0];
 
-  // Latest actual savings balance (falls back to formula estimate if not filled in)
-  const latestActualAmount = latestActual
-    ? latestActual.actual_amount
-    : Math.round(CURRENT_SAVINGS + weeksElapsed * WEEKLY_SAVINGS);
-
-  // Projected savings at wedding day:
-  // Start from latest actual, then project forward at $864/week for remaining weeks
-  const latestActualDate  = latestActual ? new Date(latestActual.milestone_date) : SAVINGS_START;
-  const weeksFromLatest   = Math.max(0, Math.floor((WEDDING_DATE - latestActualDate) / (1000*60*60*24*7)));
-  const totalSavedByDay   = Math.round(latestActualAmount + weeksFromLatest * WEEKLY_SAVINGS);
-  const projectedHoneymoon = Math.max(0, totalSavedByDay - totalOwed);
-
-  // Current honeymoon surplus = latest actual minus what's still owed
-  const honeymoonFund = Math.max(0, latestActualAmount - totalOwed);
+  const latestActualAmount = latestActual ? latestActual.actual_amount : 0;
+  const WEDDING_TOTAL = 58809; // from B4:C4 in spreadsheet
 
   // Stats
   document.getElementById('s-paid').textContent = '$' + Math.round(totalPaid).toLocaleString();
   document.getElementById('s-paid-pct').textContent = Math.round(totalPaid/totalBudget*100) + '% of budget';
   document.getElementById('s-owed').textContent = '$' + Math.round(totalOwed).toLocaleString();
   document.getElementById('s-budget').textContent = '$' + Math.round(totalBudget).toLocaleString();
-  document.getElementById('s-honeymoon').textContent = '$' + honeymoonFund.toLocaleString();
 
-  // Projected honeymoon card
-  document.getElementById('s-honeymoon-projected').textContent = '$' + projectedHoneymoon.toLocaleString();
-  document.getElementById('s-hon-base').textContent = latestActual
-    ? '$' + latestActualAmount.toLocaleString() + ' (actual ' + formatDateDisplay(latestActual.milestone_date) + ')'
-    : 'Estimated — update Actual Savings in sheet';
-  document.getElementById('s-hon-surplus').textContent = '$' + Math.round(weeksFromLatest * WEEKLY_SAVINGS).toLocaleString();
-  document.getElementById('s-hon-total').textContent = '$' + projectedHoneymoon.toLocaleString();
-  document.getElementById('s-honeymoon-breakdown').textContent =
-    projectedHoneymoon > 0
-      ? 'Update Actual Savings in your sheet each month to keep this accurate'
-      : 'Keep saving $864/wk — update your actual balance in the sheet monthly';
+  // Actual savings stat card
+  const actualEl = document.getElementById('s-actual-savings');
+  const actualSubEl = document.getElementById('s-actual-savings-sub');
+  if (actualEl) actualEl.textContent = latestActual ? '$' + latestActualAmount.toLocaleString() : '—';
+  if (actualSubEl) actualSubEl.textContent = latestActual
+    ? 'As of ' + formatDateDisplay(latestActual.milestone_date)
+    : 'Update Actual Savings in sheet';
+
+  // Savings progress card
+  const pctSaved = Math.round((totalPaid + latestActualAmount) / WEDDING_TOTAL * 100);
+  const stillToSave = Math.max(0, WEDDING_TOTAL - totalPaid - latestActualAmount);
+  const pctEl = document.getElementById('s-savings-pct');
+  const statusEl = document.getElementById('s-savings-status');
+  const paidEl2 = document.getElementById('s-savings-paid');
+  const stillEl = document.getElementById('s-still-to-save');
+  const barEl = document.getElementById('s-progress-bar');
+  const totalEl = document.getElementById('s-wedding-total');
+  if (pctEl) pctEl.textContent = pctSaved + '% funded';
+  if (statusEl) statusEl.textContent = latestActual
+    ? 'Actual savings as of ' + formatDateDisplay(latestActual.milestone_date)
+    : 'Update Actual Savings in your sheet each month';
+  if (paidEl2) paidEl2.textContent = '$' + Math.round(totalPaid + latestActualAmount).toLocaleString();
+  if (stillEl) stillEl.textContent = '$' + Math.round(stillToSave).toLocaleString();
+  if (barEl) barEl.style.width = Math.min(pctSaved, 100) + '%';
+  if (totalEl) totalEl.textContent = '$' + WEDDING_TOTAL.toLocaleString();
 
   // Alert
   const upcoming = budgetData
@@ -1098,31 +1102,36 @@ function getMonthData(m) {
   // Balance = savings accumulated minus all payments made so far
   const balance = Math.max(0, totalSaved - paidOut);
 
-  // Projected honeymoon surplus at this month = total saved vs total wedding cost
-  const honeymoon = Math.max(0, totalSaved - totalBudget);
 
   const monthPayments = allPayments.filter(p =>
     p.date.getMonth() === m.mo-1 && p.date.getFullYear() === m.yr
   );
-  return { totalSaved, honeymoon, balance, monthPayments };
+  return { totalSaved, balance, monthPayments };
 }
 
 let savingsChartInst = null;
 function renderSavings() {
-  const wLine=[], aLine=[], bLine=[];
-  MONTHS.forEach(m => {
-    const d = getMonthData(m);
-    // Target line: pure $864/week formula from start
+  const totalBudget = budgetData.reduce((s,r) => s + (r.budget_amount||0), 0) || WEDDING_TOTAL;
+
+  // Line 1: Target — flat line at total wedding cost ($58,809)
+  const targetLine = MONTHS.map(() => totalBudget);
+
+  // Line 2: Actual savings — from column M in sheet (null where not filled in yet)
+  const actualLine = MONTHS.map(m => {
     const endOfMonth = new Date(m.yr, m.mo-1, 28);
-    const weeksEl = Math.max(0, Math.floor((endOfMonth - SAVINGS_START) / (1000*60*60*24*7)));
-    wLine.push(Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS + weeksEl * WEEKLY_SAVINGS));
-    // Actual line: real data from sheet or null if not filled in yet
-    const matchSaving = savingsData.find(s => {
+    const match = savingsData.find(s => {
       const sd = new Date(s.milestone_date);
       return sd.getMonth() === endOfMonth.getMonth() && sd.getFullYear() === endOfMonth.getFullYear();
     });
-    aLine.push(matchSaving && matchSaving.actual_amount !== null ? matchSaving.actual_amount : null);
-    bLine.push(d.balance);
+    return (match && match.actual_amount !== null && match.actual_amount !== undefined)
+      ? match.actual_amount
+      : null;
+  });
+
+  // Line 3: Running balance — your savings minus payments made to that point
+  const balanceLine = MONTHS.map(m => {
+    const d = getMonthData(m);
+    return d.balance;
   });
 
   const ctx = document.getElementById('savingsChart');
@@ -1132,24 +1141,65 @@ function renderSavings() {
     data: {
       labels: MONTHS.map(m=>m.label),
       datasets: [
-        { label:'Total savings', data:wLine, borderColor:'#7B9EC4', backgroundColor:'transparent', borderWidth:1.5, borderDash:[4,3], pointRadius:2 },
-        { label:'Balance after payments', data:bLine, borderColor:'#7D9B76', backgroundColor:'transparent', borderWidth:2, pointRadius:3 },
+        {
+          label: 'Wedding total',
+          data: targetLine,
+          borderColor: '#F5C8D2',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+        },
+        {
+          label: 'Actual savings (from sheet)',
+          data: actualLine,
+          borderColor: '#E8A0B0',
+          backgroundColor: 'transparent',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointStyle: 'circle',
+          spanGaps: false,
+        },
+        {
+          label: 'Running balance',
+          data: balanceLine,
+          borderColor: '#A8C5B8',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 2,
+          borderDash: [3, 3],
+        },
       ]
     },
     options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>' $'+ctx.raw.toLocaleString() } } },
-      scales:{
-        y:{ ticks:{ callback:v=>'$'+(v/1000).toFixed(0)+'k', font:{size:10}, color:'#9C9C9C' }, grid:{color:'rgba(0,0,0,0.04)'} },
-        x:{ ticks:{ font:{size:10}, maxRotation:45, autoSkip:false, color:'#9C9C9C' } }
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' $' + (ctx.raw||0).toLocaleString() } }
+      },
+      scales: {
+        y: {
+          ticks: { callback: v => '$'+(v/1000).toFixed(0)+'k', font:{size:10}, color:'#9C9C9C' },
+          grid: { color:'rgba(0,0,0,0.04)' },
+          suggestedMin: 0,
+          suggestedMax: Math.round(totalBudget * 1.05),
+        },
+        x: { ticks: { font:{size:10}, maxRotation:45, autoSkip:false, color:'#9C9C9C' } }
       }
     }
   });
 
   const leg = document.getElementById('chart-legend');
   leg.innerHTML = '';
-  [['#C8DDD7','Target ($864/wk)'],['#E8A0B0','Actual (from sheet)'],['#7D9B76','Balance after payments']].forEach(([c,l]) => {
-    leg.innerHTML += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:${c};display:inline-block;border-radius:2px;"></span>${l}</span>`;
+  [
+    ['#F5C8D2', 'Wedding total ($58,809)', true],
+    ['#E8A0B0', 'Actual savings (update in sheet monthly)', false],
+    ['#A8C5B8', 'Running balance (savings − payments)', true],
+  ].forEach(([c,l,dashed]) => {
+    const line = dashed
+      ? `<span style="width:16px;border-top:2px dashed ${c};display:inline-block;vertical-align:middle;"></span>`
+      : `<span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block;"></span>`;
+    leg.innerHTML += `<span style="display:flex;align-items:center;gap:4px;">${line}${l}</span>`;
   });
 
   // Table
@@ -1182,11 +1232,22 @@ function renderSavings() {
          </td>`
       : `<td style="font-size:11px;color:#9C9C9C;">—</td>`;
 
+    // Find actual savings for this month from sheet
+    const monthActual = savingsData.find(s => {
+      const sd = new Date(s.milestone_date);
+      return sd.getMonth() === m.mo-1 && sd.getFullYear() === m.yr;
+    });
+    const actualAmt = monthActual && monthActual.actual_amount !== null ? monthActual.actual_amount : null;
+    const targetAmt = monthActual ? monthActual.target_amount : null;
+    const allPmts = getScheduledPayments();
+    const endMo = new Date(m.yr, m.mo-1, 28);
+    const paymentsOut = ALREADY_PAID_DEPOSITS + allPmts.filter(p=>p.date<=endMo).reduce((s,p)=>s+p.amount,0);
+
     tr.innerHTML = `
       <td>${m.label}</td>
-      <td style="color:#7B9EC4;">$${d.totalSaved.toLocaleString()}</td>
-      <td style="color:${d.honeymoon>0?'var(--sage)':'var(--clay)'};">${d.honeymoon>0?'+':''}\$${d.honeymoon.toLocaleString()}</td>
-      <td style="color:var(--ink-light);font-size:11px;">$${Math.round(d.totalSaved - d.balance).toLocaleString()}</td>
+      <td style="color:var(--clay);font-size:12px;">${targetAmt ? '$'+Math.round(targetAmt).toLocaleString() : '—'}</td>
+      <td style="color:#E8A0B0;font-weight:${actualAmt?'500':'400'};">${actualAmt !== null ? '$'+Math.round(actualAmt).toLocaleString() : '<span style="color:var(--ink-light);font-size:11px;">not entered</span>'}</td>
+      <td style="color:var(--ink-light);font-size:11px;">$${Math.round(paymentsOut).toLocaleString()}</td>
       <td class="${balClass}">$${d.balance.toLocaleString()}</td>`;
     tr.innerHTML += payCell.trim();
     tbody.appendChild(tr);
