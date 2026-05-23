@@ -566,7 +566,7 @@
       <div class="stat-card purple">
         <p class="stat-label">Honeymoon fund</p>
         <p class="stat-value" id="s-honeymoon">—</p>
-        <p class="stat-sub" id="s-honeymoon-sub">$87/wk + wedding surplus</p>
+        <p class="stat-sub" id="s-honeymoon-sub">Surplus so far</p>
       </div>
       <div class="stat-card" style="background:var(--blue-pale);border-color:var(--blue);">
         <p class="stat-label">Confirmed guests</p>
@@ -583,22 +583,20 @@
           <p style="font-size:11px;color:var(--ink-light);margin-top:4px;" id="s-honeymoon-breakdown">Calculating…</p>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-mid);text-align:right;">
-          <span>$87/wk × 57 weeks = <strong id="s-hon-base">—</strong></span>
-          <span>Wedding surplus = <strong id="s-hon-surplus">—</strong></span>
+          <span>$864/wk × 57 weeks = <strong id="s-hon-base">—</strong></span>
+          <span>+ existing savings/deposits = <strong id="s-hon-surplus">—</strong></span>
           <span style="border-top:1px solid #C8BFDF;padding-top:4px;font-weight:500;">Total = <strong id="s-hon-total">—</strong></span>
         </div>
       </div>
     </div>
 
     <div class="weekly-bar">
-      <p class="weekly-bar-label">Weekly savings — $864 total</p>
-      <div class="weekly-segments">
-        <div class="seg-wedding"></div>
-        <div class="seg-honeymoon"></div>
+      <p class="weekly-bar-label">Weekly savings — $864 / week</p>
+      <div style="background:var(--sand-light);border-radius:99px;height:8px;overflow:hidden;margin-bottom:10px;">
+        <div style="width:100%;height:100%;background:linear-gradient(90deg,var(--sage),var(--purple));border-radius:99px;"></div>
       </div>
       <div class="weekly-legend">
-        <span><span class="legend-dot" style="background:var(--sage);"></span>$777 wedding</span>
-        <span><span class="legend-dot" style="background:var(--purple);"></span>$87 honeymoon</span>
+        <span><span class="legend-dot" style="background:linear-gradient(90deg,var(--sage),var(--purple));border-radius:2px;"></span>Saving $864/wk · whatever exceeds wedding cost = honeymoon</span>
         <span style="margin-left:auto;color:var(--ink-light);font-size:11px;" id="weeks-label"></span>
       </div>
     </div>
@@ -630,9 +628,9 @@
             <thead>
               <tr>
                 <th style="text-align:left;">Month</th>
-                <th>Wedding</th>
-                <th style="color:var(--purple);">Honeymoon</th>
-                <th>Total</th>
+                <th>Total saved</th>
+                <th style="color:var(--purple);">Honeymoon surplus</th>
+                <th style="color:var(--ink-light);">Paid out</th>
                 <th style="color:var(--sage);">Balance</th>
                 <th>Due this month</th>
               </tr>
@@ -761,16 +759,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const WEDDING_DATE = new Date('2027-07-29');
 const SAVINGS_START = new Date('2026-05-15');
 const CURRENT_SAVINGS = 5308.46;
-const WEEKLY_WEDDING = 777;
-const WEEKLY_HONEYMOON = 87;
-const WEEKLY_TOTAL = 864;
+const WEEKLY_SAVINGS = 864;       // constant — never changes
 const ALREADY_PAID_DEPOSITS = 9135.23;
+const TOTAL_WEEKS = 57;           // savings start (May 15 2026) to wedding (Jul 29 2027)
 
 // Static Fig Tree scheduled payments (not in sheet)
 const FIGTREE_PAYMENTS = [
-  { date: new Date('2026-07-27'), amount: 3875,  label: 'Fig Tree — 1st instalment' },
-  { date: new Date('2027-01-27'), amount: 6875,  label: 'Fig Tree — 2nd instalment' },
-  { date: new Date('2027-04-27'), amount: 6875,  label: 'Fig Tree — 3rd instalment' },
+  { date: new Date('2026-07-29'), amount: 3875,  label: 'Fig Tree — 1st instalment' },
+  { date: new Date('2027-01-29'), amount: 6875,  label: 'Fig Tree — 2nd instalment' },
+  { date: new Date('2027-04-29'), amount: 6875,  label: 'Fig Tree — 3rd instalment' },
   { date: new Date('2027-07-15'), amount: 6875,  label: 'Fig Tree — final balance' },
 ];
 
@@ -837,22 +834,19 @@ function renderAll() {
   const totalOwed   = totalBudget - totalPaid;
   const today = new Date();
   const weeksElapsed = Math.max(0, Math.floor((today - SAVINGS_START) / (1000*60*60*24*7)));
-  const honeymoonFund = Math.round(weeksElapsed * WEEKLY_HONEYMOON);
 
-  // ── Projected honeymoon calculation ──────────────────────────────────────
-  // 1. Baseline: $87/wk for all 57 weeks
-  const TOTAL_WEEKS = 57;
-  const honeyBase = Math.round(TOTAL_WEEKS * WEEKLY_HONEYMOON);
+  // ── Honeymoon projection — clean simple logic ─────────────────────────────
+  // You save $864/week, constant, no splitting.
+  // Total saved by wedding day = current savings + ($864 × remaining weeks)
+  // Wedding still costs what it costs (totalOwed)
+  // Honeymoon = whatever is left over
+  const weeksRemaining   = Math.max(0, TOTAL_WEEKS - weeksElapsed);
+  const totalSavedByDay  = Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS + (weeksElapsed + weeksRemaining) * WEEKLY_SAVINGS);
+  const projectedHoneymoon = Math.max(0, totalSavedByDay - totalBudget);
 
-  // 2. Surplus: total we will save for wedding minus total we actually owe vendors
-  //    totalWeddingSaved = current savings + (TOTAL_WEEKS × $777)
-  //    totalOwedToVendors = totalBudget - totalPaid (already paid deposits don't count again)
-  const totalWeddingSavedByWedding = Math.round(CURRENT_SAVINGS + TOTAL_WEEKS * WEEKLY_WEDDING);
-  const totalStillOwed = totalBudget - totalPaid; // what's left to pay vendors
-  const weddingSurplus = Math.max(0, totalWeddingSavedByWedding - totalStillOwed);
-
-  // 3. Projected honeymoon = baseline + any wedding surplus
-  const projectedHoneymoon = honeyBase + weddingSurplus;
+  // Current honeymoon pot = what you've saved so far beyond what you've paid
+  const savedToDate      = Math.round(CURRENT_SAVINGS + weeksElapsed * WEEKLY_SAVINGS);
+  const honeymoonFund    = Math.max(0, savedToDate + ALREADY_PAID_DEPOSITS - totalBudget);
 
   // Stats
   document.getElementById('s-paid').textContent = '$' + Math.round(totalPaid).toLocaleString();
@@ -861,15 +855,15 @@ function renderAll() {
   document.getElementById('s-budget').textContent = '$' + Math.round(totalBudget).toLocaleString();
   document.getElementById('s-honeymoon').textContent = '$' + honeymoonFund.toLocaleString();
 
-  // Projected honeymoon
+  // Projected honeymoon card
   document.getElementById('s-honeymoon-projected').textContent = '$' + projectedHoneymoon.toLocaleString();
-  document.getElementById('s-hon-base').textContent = '$' + honeyBase.toLocaleString();
-  document.getElementById('s-hon-surplus').textContent = weddingSurplus > 0 ? '$' + weddingSurplus.toLocaleString() : '$0';
+  document.getElementById('s-hon-base').textContent = '$' + Math.round(TOTAL_WEEKS * WEEKLY_SAVINGS).toLocaleString();
+  document.getElementById('s-hon-surplus').textContent = '$' + Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS).toLocaleString();
   document.getElementById('s-hon-total').textContent = '$' + projectedHoneymoon.toLocaleString();
   document.getElementById('s-honeymoon-breakdown').textContent =
-    weddingSurplus > 0
-      ? 'Your deposits & under-budget saves are adding $' + weddingSurplus.toLocaleString() + ' extra!'
-      : 'Keep saving $864/wk — every deposit you pay early grows this number';
+    projectedHoneymoon > 0
+      ? '$864/wk × ' + TOTAL_WEEKS + ' weeks + existing savings − $' + Math.round(totalBudget).toLocaleString() + ' wedding cost'
+      : 'Keep saving $864/wk to build your honeymoon fund';
 
   // Alert
   const upcoming = budgetData
@@ -1053,14 +1047,23 @@ function getScheduledPayments() {
 function getMonthData(m) {
   const endOfMonth = new Date(m.yr, m.mo - 1, 28);
   const weeksElapsed = Math.max(0, Math.floor((endOfMonth - SAVINGS_START) / (1000*60*60*24*7)));
-  const weddingSaved = Math.round(CURRENT_SAVINGS + weeksElapsed * WEEKLY_WEDDING);
-  const honeymoon = Math.round(weeksElapsed * WEEKLY_HONEYMOON);
-  const totalSaved = weddingSaved + honeymoon;
+  const totalBudget  = budgetData.reduce((s,r) => s + (r.budget_amount||0), 0);
+
+  // Total accumulated savings by end of this month (including what was already paid as deposits)
+  const totalSaved = Math.round(CURRENT_SAVINGS + ALREADY_PAID_DEPOSITS + weeksElapsed * WEEKLY_SAVINGS);
+
+  // All payments made by end of this month (deposits already paid + scheduled future payments)
   const allPayments = getScheduledPayments();
   const paidOut = ALREADY_PAID_DEPOSITS + allPayments
     .filter(p => p.date <= endOfMonth)
     .reduce((s,p) => s + p.amount, 0);
-  const balance = Math.max(0, weddingSaved + ALREADY_PAID_DEPOSITS - paidOut);
+
+  // Balance = savings accumulated minus all payments made so far
+  const balance = Math.max(0, totalSaved - paidOut);
+
+  // Projected honeymoon surplus at this month = total saved vs total wedding cost
+  const honeymoon = Math.max(0, totalSaved - totalBudget);
+
   const monthPayments = allPayments.filter(p =>
     p.date.getMonth() === m.mo-1 && p.date.getFullYear() === m.yr
   );
@@ -1084,8 +1087,8 @@ function renderSavings() {
     data: {
       labels: MONTHS.map(m=>m.label),
       datasets: [
-        { label:'Wedding savings', data:wLine, borderColor:'#7B9EC4', backgroundColor:'transparent', borderWidth:1.5, borderDash:[4,3], pointRadius:2 },
-        { label:'Honeymoon', data:hLine, borderColor:'#7B6FA0', backgroundColor:'transparent', borderWidth:1.5, borderDash:[2,2], pointRadius:2 },
+        { label:'Total savings', data:wLine, borderColor:'#7B9EC4', backgroundColor:'transparent', borderWidth:1.5, borderDash:[4,3], pointRadius:2 },
+        { label:'Honeymoon surplus', data:hLine, borderColor:'#7B6FA0', backgroundColor:'transparent', borderWidth:1.5, borderDash:[2,2], pointRadius:2 },
         { label:'Balance after payments', data:bLine, borderColor:'#7D9B76', backgroundColor:'transparent', borderWidth:2, pointRadius:3 },
       ]
     },
@@ -1101,7 +1104,7 @@ function renderSavings() {
 
   const leg = document.getElementById('chart-legend');
   leg.innerHTML = '';
-  [['#7B9EC4','Wedding target'],['#7B6FA0','Honeymoon'],['#7D9B76','Balance (after payments)']].forEach(([c,l]) => {
+  [['#7B9EC4','Total savings'],['#7B6FA0','Honeymoon surplus'],['#7D9B76','Balance (after payments)']].forEach(([c,l]) => {
     leg.innerHTML += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:${c};display:inline-block;border-radius:2px;"></span>${l}</span>`;
   });
 
@@ -1137,9 +1140,9 @@ function renderSavings() {
 
     tr.innerHTML = `
       <td>${m.label}</td>
-      <td style="color:#7B9EC4;">$${d.weddingSaved.toLocaleString()}</td>
+      <td style="color:#7B9EC4;">$${d.totalSaved.toLocaleString()}</td>
       <td style="color:#7B6FA0;">$${d.honeymoon.toLocaleString()}</td>
-      <td>$${d.totalSaved.toLocaleString()}</td>
+      <td style="color:var(--ink-light);font-size:11px;">$${Math.round(d.totalSaved - d.balance).toLocaleString()}</td>
       <td class="${balClass}">$${d.balance.toLocaleString()}</td>`;
     tr.innerHTML += payCell.trim();
     tbody.appendChild(tr);
