@@ -942,20 +942,31 @@ let donutInst = null;
 function renderBudget(totalBudget, totalPaid) {
   const bars = document.getElementById('budget-bars');
   bars.innerHTML = '';
-  const top = [...budgetData].sort((a,b)=>b.budget_amount-a.budget_amount).slice(0,10);
-  const maxBudget = top[0]?.budget_amount || 1;
-  top.forEach(r => {
-    const pct = Math.round(((r.paid_amount||0)/r.budget_amount)*100);
-    const barW = Math.round((r.budget_amount/maxBudget)*100);
+  // Show ALL items sorted by budget amount descending — no slice limit
+  const allItems = [...budgetData].sort((a,b)=>b.budget_amount-a.budget_amount);
+  const maxBudget = allItems[0]?.budget_amount || 1;
+  allItems.forEach(r => {
+    if (!r.budget_amount) return; // skip rows with no budget
+    const paid = r.paid_amount || 0;
+    const pct = Math.round((paid / r.budget_amount) * 100);
+    const barW = Math.round((r.budget_amount / maxBudget) * 100);
+    const remaining = r.budget_amount - paid;
     const div = document.createElement('div');
-    div.style.marginBottom = '10px';
+    div.style.marginBottom = '12px';
     div.innerHTML = `
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-light);margin-bottom:3px;">
-        <span style="color:var(--ink);">${r.category}</span>
-        <span>$${r.budget_amount.toLocaleString()} <span style="color:var(--ink-light);">(${pct}% paid)</span></span>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--ink-light);margin-bottom:4px;gap:8px;">
+        <div style="min-width:0;">
+          <span style="color:var(--ink);font-weight:500;">${r.category}</span>
+          ${r.vendor && r.vendor !== 'TBC' ? '<span style="color:var(--ink-light);font-size:11px;"> · ' + r.vendor + '</span>' : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0;font-size:11px;">
+          <span style="color:var(--ink);">$${r.budget_amount.toLocaleString()}</span>
+          ${paid > 0 ? '<span style="color:var(--sage);"> · $' + paid.toLocaleString() + ' paid</span>' : ''}
+          ${remaining > 0 && remaining < r.budget_amount ? '<span style="color:var(--clay);"> · $' + remaining.toLocaleString() + ' left</span>' : ''}
+        </div>
       </div>
-      <div style="background:var(--sand-light);border-radius:99px;height:5px;overflow:hidden;width:${barW}%;">
-        <div style="width:${pct}%;height:100%;background:var(--sage);border-radius:99px;transition:width 0.6s;"></div>
+      <div style="background:var(--sand-light);border-radius:99px;height:6px;overflow:hidden;width:${barW}%;">
+        <div style="width:${Math.min(pct,100)}%;height:100%;background:${pct>=100?'var(--sage)':pct>0?'var(--blue)':'var(--sand-light)'};border-radius:99px;transition:width 0.6s;"></div>
       </div>`;
     bars.appendChild(div);
   });
