@@ -450,7 +450,22 @@
       <div class="stat-card purple">
         <p class="stat-label">Honeymoon fund</p>
         <p class="stat-value" id="s-honeymoon">—</p>
-        <p class="stat-sub" id="s-honeymoon-sub">$87 × weeks saved</p>
+        <p class="stat-sub" id="s-honeymoon-sub">$87/wk + wedding surplus</p>
+      </div>
+    </div>
+
+    <div style="background:var(--purple-pale);border:1px solid #C8BFDF;border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+        <div>
+          <p style="font-size:11px;font-weight:400;letter-spacing:0.08em;text-transform:uppercase;color:var(--purple);margin-bottom:4px;">Projected honeymoon total by wedding day</p>
+          <p style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:400;color:var(--purple);line-height:1;" id="s-honeymoon-projected">—</p>
+          <p style="font-size:11px;color:var(--purple);opacity:0.7;margin-top:4px;" id="s-honeymoon-breakdown">Calculating…</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--purple);text-align:right;">
+          <span>$87/wk × 57 weeks = <strong id="s-hon-base">—</strong></span>
+          <span>Wedding surplus = <strong id="s-hon-surplus">—</strong></span>
+          <span style="border-top:1px solid #C8BFDF;padding-top:4px;font-weight:500;">Total = <strong id="s-hon-total">—</strong></span>
+        </div>
       </div>
     </div>
 
@@ -665,12 +680,37 @@ function renderAll() {
   const weeksElapsed = Math.max(0, Math.floor((today - SAVINGS_START) / (1000*60*60*24*7)));
   const honeymoonFund = Math.round(weeksElapsed * WEEKLY_HONEYMOON);
 
+  // ── Projected honeymoon calculation ──────────────────────────────────────
+  // 1. Baseline: $87/wk for all 57 weeks
+  const TOTAL_WEEKS = 57;
+  const honeyBase = Math.round(TOTAL_WEEKS * WEEKLY_HONEYMOON);
+
+  // 2. Surplus: total we will save for wedding minus total we actually owe vendors
+  //    totalWeddingSaved = current savings + (TOTAL_WEEKS × $777)
+  //    totalOwedToVendors = totalBudget - totalPaid (already paid deposits don't count again)
+  const totalWeddingSavedByWedding = Math.round(CURRENT_SAVINGS + TOTAL_WEEKS * WEEKLY_WEDDING);
+  const totalStillOwed = totalBudget - totalPaid; // what's left to pay vendors
+  const weddingSurplus = Math.max(0, totalWeddingSavedByWedding - totalStillOwed);
+
+  // 3. Projected honeymoon = baseline + any wedding surplus
+  const projectedHoneymoon = honeyBase + weddingSurplus;
+
   // Stats
   document.getElementById('s-paid').textContent = '$' + Math.round(totalPaid).toLocaleString();
   document.getElementById('s-paid-pct').textContent = Math.round(totalPaid/totalBudget*100) + '% of budget';
   document.getElementById('s-owed').textContent = '$' + Math.round(totalOwed).toLocaleString();
   document.getElementById('s-budget').textContent = '$' + Math.round(totalBudget).toLocaleString();
   document.getElementById('s-honeymoon').textContent = '$' + honeymoonFund.toLocaleString();
+
+  // Projected honeymoon
+  document.getElementById('s-honeymoon-projected').textContent = '$' + projectedHoneymoon.toLocaleString();
+  document.getElementById('s-hon-base').textContent = '$' + honeyBase.toLocaleString();
+  document.getElementById('s-hon-surplus').textContent = weddingSurplus > 0 ? '$' + weddingSurplus.toLocaleString() : '$0';
+  document.getElementById('s-hon-total').textContent = '$' + projectedHoneymoon.toLocaleString();
+  document.getElementById('s-honeymoon-breakdown').textContent =
+    weddingSurplus > 0
+      ? 'Your deposits & under-budget saves are adding $' + weddingSurplus.toLocaleString() + ' extra!'
+      : 'Keep saving $864/wk — every deposit you pay early grows this number';
 
   // Alert
   const upcoming = budgetData
@@ -705,13 +745,24 @@ const MONTHS = [
   {label:"Jul'27",yr:2027,mo:7},
 ];
 
-// All scheduled payments (sheet + Fig Tree instalments)
+// All scheduled payments — pulls everything from Supabase dynamically
+const FIGTREE_CATEGORIES = ['Venue', 'Planning Fee', 'Catering Food'];
+
 function getScheduledPayments() {
+  // Always include Fig Tree instalments
   const payments = [...FIGTREE_PAYMENTS];
+
+  // Pull all vendor payments from Supabase data dynamically
+  // Calculate remaining on the fly (budget - paid) rather than relying on generated column
   const vendorPayments = budgetData
-    .filter(r => r.next_payment_date && r.remaining_amount > 0)
-    .filter(r => !['Venue','Planning Fee','Catering Food'].includes(r.category))
-    .map(r => ({ date: new Date(r.next_payment_date), amount: r.remaining_amount, label: r.category }));
+    .filter(r => r.next_payment_date) // has a date set
+    .filter(r => !FIGTREE_CATEGORIES.includes(r.category)) // exclude Fig Tree (handled separately)
+    .map(r => {
+      const remaining = (r.budget_amount || 0) - (r.paid_amount || 0);
+      return { date: new Date(r.next_payment_date + 'T00:00:00'), amount: remaining, label: r.category };
+    })
+    .filter(r => r.amount > 0); // only include if something is still owed
+
   return [...payments, ...vendorPayments];
 }
 
