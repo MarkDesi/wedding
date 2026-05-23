@@ -6,7 +6,7 @@
 <title>Maddi & Mark — Wedding Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   :root {
@@ -605,9 +605,18 @@ const FIGTREE_PAYMENTS = [
   { date: new Date('2027-07-13'), amount: 6875 },
 ];
 
-// ─── SUPABASE CLIENT ───────────────────────────────────────────────────────
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ─── SUPABASE CLIENT (no library — direct fetch) ───────────────────────────
+const HEADERS = {
+  'apikey': SUPABASE_ANON_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+  'Content-Type': 'application/json'
+};
+
+async function sbFetch(table, params = '') {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers: HEADERS });
+  if (!res.ok) throw new Error(`Supabase error: ${res.status}`);
+  return res.json();
+}
 
 // ─── STATE ─────────────────────────────────────────────────────────────────
 let budgetData = [];
@@ -617,26 +626,26 @@ async function init() {
   updateCountdown();
   await loadData();
   renderAll();
-  subscribeRealtime();
+  startPolling();
   document.getElementById('loading').style.display = 'none';
   document.getElementById('content').style.display = 'block';
 }
 
 async function loadData() {
-  const { data, error } = await db
-    .from('wedding_budget')
-    .select('*')
-    .order('budget_amount', { ascending: false });
-  if (data) budgetData = data;
+  try {
+    const data = await sbFetch('wedding_budget', 'select=*&order=budget_amount.desc');
+    if (data) budgetData = data;
+  } catch(e) {
+    console.error('Load error:', e);
+  }
 }
 
-function subscribeRealtime() {
-  db.channel('wedding-live')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'wedding_budget' }, async () => {
-      await loadData();
-      renderAll();
-    })
-    .subscribe();
+// Poll every 30 seconds for updates (replaces realtime websocket)
+function startPolling() {
+  setInterval(async () => {
+    await loadData();
+    renderAll();
+  }, 30000);
 }
 
 // ─── COUNTDOWN ─────────────────────────────────────────────────────────────
