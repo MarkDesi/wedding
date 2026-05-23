@@ -788,18 +788,28 @@ const MONTHS = [
 // All scheduled payments — pulls everything from Supabase dynamically
 const FIGTREE_CATEGORIES = ['Venue', 'Planning Fee', 'Catering Food'];
 
+// 2 weeks before wedding = 13 Jul 2027
+const DEFAULT_PAYMENT_DATE = new Date('2027-07-13T00:00:00');
+
 function getScheduledPayments() {
   // Always include Fig Tree instalments
   const payments = [...FIGTREE_PAYMENTS];
 
   // Pull all vendor payments from Supabase data dynamically
-  // Calculate remaining on the fly (budget - paid) rather than relying on generated column
+  // If no next_payment_date is set, default to 2 weeks before the wedding
   const vendorPayments = budgetData
-    .filter(r => r.next_payment_date) // has a date set
     .filter(r => !FIGTREE_CATEGORIES.includes(r.category)) // exclude Fig Tree (handled separately)
     .map(r => {
       const remaining = (r.budget_amount || 0) - (r.paid_amount || 0);
-      return { date: new Date(r.next_payment_date + 'T00:00:00'), amount: remaining, label: r.category };
+      const date = r.next_payment_date
+        ? new Date(r.next_payment_date + 'T00:00:00')
+        : DEFAULT_PAYMENT_DATE; // default: 2 weeks before wedding
+      return {
+        date,
+        amount: remaining,
+        label: r.category,
+        isDefault: !r.next_payment_date // flag so tooltip can show it's estimated
+      };
     })
     .filter(r => r.amount > 0); // only include if something is still owed
 
@@ -874,7 +884,7 @@ function renderSavings() {
     // Build tooltip rows showing label + amount for each payment
     const tooltipRows = hasP ? d.monthPayments.map(p => `
       <div class="pay-tooltip-row">
-        <div class="pay-tooltip-label">${p.label || p.category || 'Payment'}</div>
+        <div class="pay-tooltip-label">${p.label || p.category || 'Payment'}${p.isDefault ? ' <span style="opacity:0.6;">(est.)</span>' : ''}</div>
         <div class="pay-tooltip-amount">$${Math.round(p.amount||0).toLocaleString()}</div>
       </div>`).join('') : '';
 
