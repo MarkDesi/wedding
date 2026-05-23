@@ -559,15 +559,15 @@
         <p class="stat-value" id="s-owed">—</p>
         <p class="stat-sub" id="s-owed-sub">To all vendors</p>
       </div>
-      <div class="stat-card">
-        <p class="stat-label">Total budget</p>
-        <p class="stat-value" id="s-budget">—</p>
-        <p class="stat-sub">All vendors combined</p>
-      </div>
       <div class="stat-card" style="background:var(--yellow-pale);border-color:#EDE0A0;">
         <p class="stat-label">Actual savings</p>
         <p class="stat-value" id="s-actual-savings" style="color:var(--ink);">—</p>
         <p class="stat-sub" id="s-actual-savings-sub">Most recent entry</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">Total budget</p>
+        <p class="stat-value" id="s-budget">—</p>
+        <p class="stat-sub">All vendors combined</p>
       </div>
       <div class="stat-card" style="background:var(--blue-pale);border-color:var(--blue);">
         <p class="stat-label">Confirmed guests</p>
@@ -580,8 +580,9 @@
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
         <div>
           <p style="font-size:11px;font-weight:400;letter-spacing:0.08em;text-transform:uppercase;color:var(--clay);margin-bottom:4px;">Savings progress</p>
-          <p style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:400;color:var(--clay);line-height:1;" id="s-savings-pct">—</p>
-          <p style="font-size:11px;color:var(--ink-light);margin-top:4px;" id="s-savings-status">Update Actual Savings in your sheet each month</p>
+          <p style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:400;color:var(--clay);line-height:1;" id="s-savings-pct">—</p>
+          <p style="font-size:13px;color:var(--clay);font-weight:500;margin-top:4px;" id="s-savings-pct-pct">— of total</p>
+          <p style="font-size:11px;color:var(--ink-light);margin-top:2px;" id="s-savings-status">Update Actual Savings in your sheet each month</p>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-mid);text-align:right;">
           <span>Wedding total = <strong id="s-wedding-total">$58,809</strong></span>
@@ -877,6 +878,8 @@ const totalSavedOverall = Math.round(totalPaid + actualBalance);
   const barEl = document.getElementById('s-progress-bar');
   const totalEl = document.getElementById('s-wedding-total');
   if (pctEl) pctEl.textContent = '$' + totalSavedOverall.toLocaleString() + ' saved';
+  const pctPctEl = document.getElementById('s-savings-pct-pct');
+  if (pctPctEl) pctPctEl.textContent = pctBar + '% of $' + WEDDING_TOTAL.toLocaleString() + ' total';
   if (statusEl) statusEl.textContent = latestActual
     ? 'Deposits paid + bank balance as of ' + formatDateDisplay(latestActual.milestone_date)
     : 'Deposits paid ($' + Math.round(totalPaid).toLocaleString() + ') + bank balance ($' + Math.round(actualBalance).toLocaleString() + ')';
@@ -1033,25 +1036,25 @@ const MONTHS = [
   {label:"Jul'27",yr:2027,mo:7},
 ];
 
-// Pre-calculated target bank balances (current balance + future savings + interest - future payments)
-// Based on: start Apr 8 2026, current balance $3,841.96 as of May 21, $864/wk, 2.75% p.a. interest
+// Target bank balance on the 15th of each month
+// Calculated from: Apr 8 start, $864/wk regular + lump sums, minus all payments, plus 2.75% p.a. interest
 const TARGET_BANK_BALANCES = {
-  '2026-4':  3841.96,
-  '2026-5':  3841.96,
-  '2026-6':  8162.78,
-  '2026-7':  7745.93,
-  '2026-8':  11205.40,
-  '2026-9':  15530.84,
-  '2026-10': 18993.11,
-  '2026-11': 20793.70,
-  '2026-12': 25123.76,
-  '2027-1':  21715.16,
-  '2027-2':  25182.88,
-  '2027-3':  29517.56,
-  '2027-4':  26113.08,
-  '2027-5':  29584.92,
-  '2027-6':  28974.23,
-  '2027-7':  18241.25,
+  '2026-4':  1454.00,
+  '2026-5':  4281.42,
+  '2026-6':  9288.74,
+  '2026-7':  13057.32,
+  '2026-8':  13092.00,
+  '2026-9':  17020.22,
+  '2026-10': 20839.27,
+  '2026-11': 23139.29,
+  '2026-12': 26993.58,
+  '2027-1':  30990.37,
+  '2027-2':  28129.70,
+  '2027-3':  31782.24,
+  '2027-4':  35830.80,
+  '2027-5':  32895.22,
+  '2027-6':  36979.60,
+  '2027-7':  23527.22,
 };
 
 // All scheduled payments — pulls everything from Supabase dynamically
