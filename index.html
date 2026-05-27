@@ -889,19 +889,32 @@ const totalSavedOverall = Math.round(totalPaid + actualBalance);
   if (totalEl) totalEl.textContent = '$' + WEDDING_TOTAL.toLocaleString();
 
   // Alert
-  const upcoming = budgetData
-    .filter(r => r.next_payment_date)
-    .sort((a,b) => new Date(a.next_payment_date) - new Date(b.next_payment_date))
-    .find(r => new Date(r.next_payment_date) > today);
+  // Build complete list of all future payments (Fig Tree instalments + vendor payments, excluding Fig Tree budget rows)
+  const FIG_TREE_CATS = ['Venue', 'Planning Fee', 'Catering Food'];
+  const allUpcoming = [
+    // Fig Tree instalments from the schedule
+    ...FIGTREE_PAYMENTS.filter(p => p.date > today),
+    // All other vendor payments from Supabase
+    ...budgetData
+      .filter(r => r.next_payment_date && !FIG_TREE_CATS.includes(r.category))
+      .filter(r => new Date(r.next_payment_date + 'T00:00:00') > today)
+      .map(r => ({
+        date: new Date(r.next_payment_date + 'T00:00:00'),
+        amount: (r.budget_amount||0) - (r.paid_amount||0),
+        label: r.category
+      }))
+  ].sort((a,b) => a.date - b.date);
+
+  const upcoming = allUpcoming[0] || null;
 
   if (upcoming) {
-    const daysAway = Math.ceil((new Date(upcoming.next_payment_date) - today) / (1000*60*60*24));
+    const daysAway = Math.ceil((upcoming.date - today) / (1000*60*60*24));
     const weeksAway = Math.floor(daysAway / 7);
     document.getElementById('alert-box').style.display = 'block';
     document.getElementById('alert-title').textContent = 'Next payment in ~' + weeksAway + ' weeks';
     document.getElementById('alert-body').textContent =
-      upcoming.category + ' · $' + Math.round(upcoming.remaining_amount||0).toLocaleString() +
-      ' due ' + formatDateDisplay(upcoming.next_payment_date);
+      (upcoming.label || upcoming.category) + ' · $' + Math.round(upcoming.amount||0).toLocaleString() +
+      ' due ' + formatDateDisplay(upcoming.date.toISOString().split('T')[0]);
   }
 
   // ── Guests ──────────────────────────────────────────────────────────────
